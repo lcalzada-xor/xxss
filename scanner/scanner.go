@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"xxss/models"
+
+	"github.com/lcalzada-xor/xxss/models"
 )
 
 type Scanner struct {
@@ -95,7 +96,7 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 
 	qs := u.Query()
 	val := qs.Get(param)
-	
+
 	// Construct payload: "original_value" + "random_prefix" + all_chars + "random_suffix"
 	// Using a static prefix/suffix for now for simplicity, but unique enough.
 	probeStr := "xssprobe"

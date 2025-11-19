@@ -9,8 +9,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"xxss/network"
-	"xxss/scanner"
+
+	"github.com/lcalzada-xor/xxss/network"
+	"github.com/lcalzada-xor/xxss/scanner"
 )
 
 func main() {
