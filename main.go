@@ -114,8 +114,43 @@ Examples:
 	sc := scanner.NewScanner(client, headerMap)
 	sc.SetRawPayload(rawPayload)
 
+	// Print banner unless silent
+	if !silent {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  ██╗  ██╗██╗  ██╗███████╗███████╗")
+		fmt.Fprintln(os.Stderr, "  ╚██╗██╔╝╚██╗██╔╝██╔════╝██╔════╝")
+		fmt.Fprintln(os.Stderr, "   ╚███╔╝  ╚███╔╝ ███████╗███████╗")
+		fmt.Fprintln(os.Stderr, "   ██╔██╗  ██╔██╗ ╚════██║╚════██║")
+		fmt.Fprintln(os.Stderr, "  ██╔╝ ██╗██╔╝ ██╗███████║███████║")
+		fmt.Fprintln(os.Stderr, "  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  Fast XSS Reflected Params Scanner")
+		fmt.Fprintln(os.Stderr, "  v1.1.0 | github.com/lcalzada-xor/xxss")
+		fmt.Fprintln(os.Stderr, "")
+		if verbose {
+			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", concurrency)
+			fmt.Fprintf(os.Stderr, "[*] Timeout: %v\n", timeout)
+			fmt.Fprintf(os.Stderr, "[*] Raw payload: %v\n", rawPayload)
+			if len(allowList) > 0 {
+				fmt.Fprintf(os.Stderr, "[*] Allow filter: %v\n", allow)
+			}
+			if len(ignoreList) > 0 {
+				fmt.Fprintf(os.Stderr, "[*] Ignore filter: %v\n", ignore)
+			}
+			fmt.Fprintln(os.Stderr, "")
+		}
+	}
+
 	jobs := make(chan string)
 	var wg sync.WaitGroup
+
+	// Statistics
+	var (
+		totalURLs   int
+		scannedURLs int
+		foundVulns  int
+		statsMutex  sync.Mutex
+	)
 
 	// Worker pool
 	for i := 0; i < concurrency; i++ {
@@ -123,10 +158,19 @@ Examples:
 		go func() {
 			defer wg.Done()
 			for url := range jobs {
+				statsMutex.Lock()
+				scannedURLs++
+				currentScanned := scannedURLs
+				statsMutex.Unlock()
+
+				if verbose && !silent {
+					fmt.Fprintf(os.Stderr, "[%d] Scanning: %s\n", currentScanned, url)
+				}
+
 				results, err := sc.Scan(url)
 				if err != nil {
 					if verbose && !silent {
-						fmt.Fprintf(os.Stderr, "Error scanning %s: %v\n", url, err)
+						fmt.Fprintf(os.Stderr, "[!] Error scanning %s: %v\n", url, err)
 					}
 					continue
 				}
@@ -151,6 +195,14 @@ Examples:
 					// Update result to show what remains
 					res.Unfiltered = filteredUnfiltered
 
+					statsMutex.Lock()
+					foundVulns++
+					statsMutex.Unlock()
+
+					if verbose && !silent {
+						fmt.Fprintf(os.Stderr, "[+] Found: %s (param: %s, chars: %v)\n", res.URL, res.Parameter, res.Unfiltered)
+					}
+
 					output, err := json.Marshal(res)
 					if err != nil {
 						continue
@@ -166,12 +218,21 @@ Examples:
 	for scanner.Scan() {
 		url := scanner.Text()
 		if url != "" {
+			statsMutex.Lock()
+			totalURLs++
+			statsMutex.Unlock()
 			jobs <- url
 		}
 	}
 
 	close(jobs)
 	wg.Wait()
+
+	// Print statistics
+	if !silent {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintf(os.Stderr, "[*] Scan complete: %d URLs processed, %d vulnerabilities found\n", scannedURLs, foundVulns)
+	}
 }
 
 // headerFlags allows setting multiple headers
