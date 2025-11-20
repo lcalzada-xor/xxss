@@ -22,6 +22,7 @@ func main() {
 		silent      bool
 		allow       string
 		ignore      string
+		rawPayload  bool
 	)
 
 	// Define flags with both short and long names
@@ -43,6 +44,17 @@ func main() {
 	flag.StringVar(&ignore, "i", "", "Comma-separated list of ignored characters (e.g. ', \")")
 	flag.StringVar(&ignore, "ignore", "", "Comma-separated list of ignored characters (e.g. ', \")")
 
+	var proxy string
+	flag.StringVar(&proxy, "x", "", "Proxy URL (e.g. http://127.0.0.1:8080)")
+	flag.StringVar(&proxy, "proxy", "", "Proxy URL (e.g. http://127.0.0.1:8080)")
+
+	var headers headerFlags
+	flag.Var(&headers, "H", "Custom header (e.g. 'Cookie: session=123')")
+	flag.Var(&headers, "header", "Custom header (e.g. 'Cookie: session=123')")
+
+	flag.BoolVar(&rawPayload, "r", false, "Send payloads without URL encoding")
+	flag.BoolVar(&rawPayload, "raw", false, "Send payloads without URL encoding")
+
 	// Custom Usage function
 	flag.Usage = func() {
 		h := `xxss - Fast XSS reflected params prober
@@ -57,11 +69,17 @@ Flags:
   -s, --silent            Silent mode (suppress errors)
   -a, --allow string      Comma-separated list of allowed characters (e.g. <,>)
   -i, --ignore string     Comma-separated list of ignored characters (e.g. ', ")
+  -x, --proxy string      Proxy URL (e.g. http://127.0.0.1:8080)
+  -H, --header string     Custom header (e.g. 'Cookie: session=123')
+  -r, --raw               Send payloads without URL encoding
 
 Examples:
   echo "http://example.com/?p=val" | xxss
   cat urls.txt | xxss -c 50 -silent
   cat urls.txt | xxss --allow "<,>" --ignore "'"
+  echo "http://example.com" | xxss -x http://127.0.0.1:8080
+  echo "http://example.com" | xxss -H "Cookie: session=123"
+  cat urls.txt | xxss --raw  # Send special chars unencoded
 `
 		fmt.Fprint(os.Stderr, h)
 	}
@@ -83,8 +101,18 @@ Examples:
 		}
 	}
 
-	client := network.NewClient(timeout)
-	sc := scanner.NewScanner(client)
+	// Parse headers
+	headerMap := make(map[string]string)
+	for _, h := range headers {
+		parts := strings.SplitN(h, ":", 2)
+		if len(parts) == 2 {
+			headerMap[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		}
+	}
+
+	client := network.NewClient(timeout, proxy)
+	sc := scanner.NewScanner(client, headerMap)
+	sc.SetRawPayload(rawPayload)
 
 	jobs := make(chan string)
 	var wg sync.WaitGroup
@@ -144,4 +172,16 @@ Examples:
 
 	close(jobs)
 	wg.Wait()
+}
+
+// headerFlags allows setting multiple headers
+type headerFlags []string
+
+func (h *headerFlags) String() string {
+	return fmt.Sprint(*h)
+}
+
+func (h *headerFlags) Set(value string) error {
+	*h = append(*h, value)
+	return nil
 }

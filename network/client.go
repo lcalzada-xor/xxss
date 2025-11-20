@@ -4,11 +4,12 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 )
 
 // NewClient creates a new HTTP client with custom timeouts and transport settings.
-func NewClient(timeout time.Duration) *http.Client {
+func NewClient(timeout time.Duration, proxyURL string) *http.Client {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		DialContext: (&net.Dialer{
@@ -19,6 +20,12 @@ func NewClient(timeout time.Duration) *http.Client {
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 10,
 		IdleConnTimeout:     90 * time.Second,
+	}
+
+	if proxyURL != "" {
+		if pURL, err := url.Parse(proxyURL); err == nil {
+			transport.Proxy = http.ProxyURL(pURL)
+		}
 	}
 
 	client := &http.Client{

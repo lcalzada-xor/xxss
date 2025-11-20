@@ -1,22 +1,34 @@
 package scanner
 
 import (
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/lcalzada-xor/xxss/models"
 )
 
 type Scanner struct {
-	client *http.Client
+	client        *http.Client
+	headers       map[string]string
+	useRawPayload bool
 }
 
-func NewScanner(client *http.Client) *Scanner {
+func NewScanner(client *http.Client, headers map[string]string) *Scanner {
 	return &Scanner{
-		client: client,
+		client:        client,
+		headers:       headers,
+		useRawPayload: false,
 	}
+}
+
+// SetRawPayload enables or disables raw payload mode (no URL encoding)
+func (s *Scanner) SetRawPayload(raw bool) {
+	s.useRawPayload = raw
 }
 
 // Scan performs the XSS scan on the given URL.
@@ -52,11 +64,35 @@ func (s *Scanner) Scan(targetURL string) ([]models.Result, error) {
 func (s *Scanner) checkReflection(targetURL string) ([]string, error) {
 	reflected := []string{}
 
-	req, err := http.NewRequest("GET", targetURL, nil)
+	u, err := url.Parse(targetURL)
+	if err != nil {
+		return reflected, err
+	}
+
+	// For each parameter, inject a unique value to avoid false positives
+	// from common values like "1", "en", "test"
+	rand.Seed(time.Now().UnixNano())
+	paramProbes := make(map[string]string)
+	qs := u.Query()
+
+	for key := range qs {
+		// Generate unique probe for this parameter
+		paramProbes[key] = fmt.Sprintf("xxss_%d_%d", time.Now().UnixNano(), rand.Intn(10000))
+		qs.Set(key, paramProbes[key])
+	}
+
+	u.RawQuery = qs.Encode()
+
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return reflected, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
+
+	// Add custom headers
+	for k, v := range s.headers {
+		req.Header.Set(k, v)
+	}
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -70,18 +106,10 @@ func (s *Scanner) checkReflection(targetURL string) ([]string, error) {
 	}
 	body := string(bodyBytes)
 
-	u, err := url.Parse(targetURL)
-	if err != nil {
-		return reflected, err
-	}
-
-	for key, values := range u.Query() {
-		for _, v := range values {
-			// Basic reflection check: is the value present?
-			if strings.Contains(body, v) {
-				reflected = append(reflected, key)
-				break // Found one instance of this param being reflected
-			}
+	// Check which unique probes are reflected
+	for key, probe := range paramProbes {
+		if strings.Contains(body, probe) {
+			reflected = append(reflected, key)
 		}
 	}
 
@@ -102,14 +130,45 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 	probeStr := "xssprobe"
 	payload := val + probeStr + strings.Join(SpecialChars, "") + probeStr
 
-	qs.Set(param, payload)
-	u.RawQuery = qs.Encode()
+	var finalURL string
+	if s.useRawPayload {
+		// Raw mode: construct URL manually without encoding special characters
+		qs.Set(param, payload)
+		// Build the query string manually to avoid encoding
+		rawQuery := ""
+		for k, values := range qs {
+			for _, v := range values {
+				if rawQuery != "" {
+					rawQuery += "&"
+				}
+				if k == param {
+					// Don't encode the payload for this parameter
+					rawQuery += k + "=" + v
+				} else {
+					// Encode other parameters normally
+					rawQuery += url.QueryEscape(k) + "=" + url.QueryEscape(v)
+				}
+			}
+		}
+		u.RawQuery = rawQuery
+		finalURL = u.String()
+	} else {
+		// Normal mode: use standard URL encoding
+		qs.Set(param, payload)
+		u.RawQuery = qs.Encode()
+		finalURL = u.String()
+	}
 
-	req, err := http.NewRequest("GET", u.String(), nil)
+	req, err := http.NewRequest("GET", finalURL, nil)
 	if err != nil {
 		return models.Result{}, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
+
+	// Add custom headers
+	for k, v := range s.headers {
+		req.Header.Set(k, v)
+	}
 
 	resp, err := s.client.Do(req)
 	if err != nil {

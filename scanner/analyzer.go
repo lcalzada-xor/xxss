@@ -5,7 +5,36 @@ import (
 )
 
 // SpecialChars is the set of characters we want to probe for XSS.
-var SpecialChars = []string{"\"", "'", "<", ">", "$", "|", "(", ")", "`", ":", ";", "{", "}"}
+// Expanded list to catch XSS without quotes and other edge cases.
+var SpecialChars = []string{
+	"\"", "'", "<", ">", "$", "|", "(", ")", "`", ":", ";", "{", "}",
+	"&", "#", "=", "/", " ", "\t", "%", "\\",
+}
+
+// htmlEncodings maps special characters to their HTML entity equivalents
+var htmlEncodings = map[string][]string{
+	"<":  {"&lt;", "&#60;", "&#x3c;", "&#x3C;"},
+	">":  {"&gt;", "&#62;", "&#x3e;", "&#x3E;"},
+	"\"": {"&quot;", "&#34;", "&#x22;"},
+	"'":  {"&#39;", "&#x27;", "&apos;"},
+	"&":  {"&amp;", "&#38;", "&#x26;"},
+	"/":  {"&#47;", "&#x2f;", "&#x2F;"},
+}
+
+// isHTMLEncoded checks if a character appears in its HTML-encoded form in the body
+func isHTMLEncoded(body, char string) bool {
+	encodings, exists := htmlEncodings[char]
+	if !exists {
+		return false
+	}
+
+	for _, encoding := range encodings {
+		if strings.Contains(body, encoding) {
+			return true
+		}
+	}
+	return false
+}
 
 // AnalyzeResponse checks if the probe string and special characters are reflected in the body.
 func AnalyzeResponse(body, probe string) []string {
@@ -29,17 +58,26 @@ func AnalyzeResponse(body, probe string) []string {
 	// Everything else is sandwiched between probes.
 	for i := 1; i < len(parts)-1; i++ {
 		part := parts[i]
-		
-		// Heuristic: The reflected chars shouldn't be excessively long.
-		// If it's > 200 chars, it might be a large chunk of HTML between two coincidental probes
-		// (unlikely with "xssprobe", but safe to check).
-		if len(part) > 200 {
+
+		// Increased limit from 200 to 1000 to avoid missing legitimate reflections
+		// while still preventing analysis of huge HTML chunks
+		if len(part) > 1000 {
 			continue
 		}
 
 		for _, char := range SpecialChars {
 			if strings.Contains(part, char) {
-				uniqueUnfiltered[char] = true
+				// Check if this character is HTML-encoded in the full body
+				// If it's encoded, it's likely not exploitable (reduce false positives)
+				// But we still report it since xxss is a screening tool (dalfox will verify)
+				if isHTMLEncoded(body, char) {
+					// Character appears encoded somewhere, but also appears unencoded in this part
+					// This is still worth reporting for dalfox to analyze
+					uniqueUnfiltered[char] = true
+				} else {
+					// Character appears unencoded - definitely report it
+					uniqueUnfiltered[char] = true
+				}
 			}
 		}
 	}
