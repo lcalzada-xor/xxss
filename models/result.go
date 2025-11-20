@@ -12,7 +12,10 @@ type ReflectionContext string
 
 const (
 	ContextHTML            ReflectionContext = "html"
-	ContextJavaScript      ReflectionContext = "javascript"
+	ContextJavaScript      ReflectionContext = "javascript" // Deprecated: use specific JS contexts
+	ContextJSSingleQuote   ReflectionContext = "javascript_single_quote"
+	ContextJSDoubleQuote   ReflectionContext = "javascript_double_quote"
+	ContextJSRaw           ReflectionContext = "javascript_raw"
 	ContextTemplateLiteral ReflectionContext = "template_literal"
 	ContextCSS             ReflectionContext = "css"
 	ContextAttribute       ReflectionContext = "attribute"
@@ -21,6 +24,8 @@ const (
 	ContextSVG             ReflectionContext = "svg"
 	ContextMetaRefresh     ReflectionContext = "meta_refresh"
 	ContextComment         ReflectionContext = "comment"
+	ContextTagName         ReflectionContext = "tag_name"
+	ContextRCDATA          ReflectionContext = "rcdata"
 	ContextUnknown         ReflectionContext = "unknown"
 )
 

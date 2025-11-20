@@ -2,7 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v1.4.2] - 2025-11-20
+## [v1.4.3] - 2025-11-20
+
+### Fixed
+- **Precision**: Updated attribute payloads to correctly close quotes (`"` or `'`).
+- **Attribute Context**: Switched to `onmouseover` event for broader applicability.
+- **URL Context**: Added tag‑breakout payloads before falling back to `javascript:`.
+
+### Added
+- **Granular JavaScript contexts**: `ContextJSSingleQuote`, `ContextJSDoubleQuote`, `ContextJSRaw` with appropriate payloads.
+- **Tag Name context** (`ContextTagName`) and **RCDATA context** (`ContextRCDATA`) detection and payloads.
+
+### Changed
+- Updated version banner to `v1.4.3`.
+
 
 ### Fixed
 - **Critical**: Parameter reflection detection bug where parameters were tested simultaneously, causing false negatives when reflection depended on other parameters. Now tests each parameter individually.

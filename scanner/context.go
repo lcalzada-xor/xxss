@@ -41,8 +41,8 @@ func DetectContext(body, probe string) models.ReflectionContext {
 		return models.ContextTemplateLiteral
 	}
 
-	if isInJavaScript(context, probe) {
-		return models.ContextJavaScript
+	if isJS, jsContext := analyzeJavaScriptContext(context, probe); isJS {
+		return jsContext
 	}
 
 	if isInCSS(context, probe) {
@@ -53,6 +53,14 @@ func DetectContext(body, probe string) models.ReflectionContext {
 		return models.ContextURL
 	}
 
+	if isInTagName(context, probe) {
+		return models.ContextTagName
+	}
+
+	if isInRCDATA(context, probe) {
+		return models.ContextRCDATA
+	}
+
 	if isInAttribute(context, probe) {
 		return models.ContextAttribute
 	}
@@ -61,18 +69,18 @@ func DetectContext(body, probe string) models.ReflectionContext {
 	return models.ContextHTML
 }
 
-func isInJavaScript(context, probe string) bool {
+func analyzeJavaScriptContext(context, probe string) (bool, models.ReflectionContext) {
 	// Check if inside <script> tags
 	scriptPattern := regexp.MustCompile(`(?i)<script[^>]*>[\s\S]*?` + regexp.QuoteMeta(probe) + `[\s\S]*?</script>`)
 	if scriptPattern.MatchString(context) {
-		return true
+		return determineJSQuoteContext(context, probe)
 	}
 
 	// Check for inline event handlers (onclick, onload, etc.)
 	// Need to verify probe is INSIDE the event handler value, not after it
 	probeIndex := strings.Index(context, probe)
 	if probeIndex == -1 {
-		return false
+		return false, models.ContextUnknown
 	}
 
 	before := context[:probeIndex]
@@ -80,7 +88,7 @@ func isInJavaScript(context, probe string) bool {
 	// Look for event handler pattern before probe
 	eventPattern := regexp.MustCompile(`(?i)on\w+\s*=\s*["']?[^"'>]*$`)
 	if !eventPattern.MatchString(before) {
-		return false
+		return false, models.ContextUnknown
 	}
 
 	// Find last < and > to ensure we're in a tag
@@ -88,7 +96,7 @@ func isInJavaScript(context, probe string) bool {
 	lastTagEnd := strings.LastIndex(before, ">")
 
 	if lastTagEnd > lastTagStart {
-		return false // Not inside a tag
+		return false, models.ContextUnknown // Not inside a tag
 	}
 
 	// Count quotes to see if we're inside the event handler value
@@ -97,7 +105,50 @@ func isInJavaScript(context, probe string) bool {
 	singleQuotes := strings.Count(afterEvent, "'")
 
 	// Odd number of quotes means we're inside
-	return (doubleQuotes%2 == 1) || (singleQuotes%2 == 1)
+	if (doubleQuotes%2 == 1) || (singleQuotes%2 == 1) {
+		return determineJSQuoteContext(context, probe)
+	}
+
+	return false, models.ContextUnknown
+}
+
+func determineJSQuoteContext(context, probe string) (bool, models.ReflectionContext) {
+	probeIndex := strings.Index(context, probe)
+	if probeIndex == -1 {
+		return false, models.ContextUnknown
+	}
+
+	before := context[:probeIndex]
+
+	// Simple check for quotes immediately preceding the probe (ignoring whitespace/operators for now)
+	// A more robust parser would be better, but this covers simple cases like var x = 'PROBE'
+
+	// Count quotes in the line/block before the probe to determine state
+	// This is tricky without a full parser.
+	// Heuristic: Look at the last quote character before the probe.
+
+	// Find last single and double quotes
+	lastSquote := strings.LastIndex(before, "'")
+	lastDquote := strings.LastIndex(before, "\"")
+
+	// Check if we are inside a string based on quote counts from the start of the relevant block
+	// For simplicity, let's look at the closest quote.
+
+	if lastSquote > lastDquote {
+		// Potential single quote context. Check if it's an opening quote.
+		// If count of single quotes before is odd, we are likely inside.
+		if strings.Count(before, "'")%2 != 0 {
+			return true, models.ContextJSSingleQuote
+		}
+	} else if lastDquote > lastSquote {
+		// Potential double quote context
+		if strings.Count(before, "\"")%2 != 0 {
+			return true, models.ContextJSDoubleQuote
+		}
+	}
+
+	// If no active quotes, it's raw JS
+	return true, models.ContextJSRaw
 }
 
 func isInCSS(context, probe string) bool {
@@ -210,6 +261,52 @@ func isInComment(context, probe string) bool {
 	return commentPattern.MatchString(context)
 }
 
+func isInTagName(context, probe string) bool {
+	probeIndex := strings.Index(context, probe)
+	if probeIndex == -1 {
+		return false
+	}
+
+	before := context[:probeIndex]
+	after := context[probeIndex+len(probe):]
+
+	// Check if there's a < before and no > between < and probe
+	lastLt := strings.LastIndex(before, "<")
+	lastGt := strings.LastIndex(before, ">")
+
+	if lastLt == -1 || lastGt > lastLt {
+		return false
+	}
+
+	// Check if probe is before first space or >
+	// If we are in tag name, we expect no space between < and probe (or just whitespace)
+	// And we expect a space or > after the probe
+
+	// Check if we are right after <
+	between := before[lastLt+1:]
+	if strings.TrimSpace(between) != "" {
+		return false // Not a tag name if there's stuff between < and probe
+	}
+
+	afterProbe := strings.TrimLeft(after, " \t\n\r")
+	if len(afterProbe) > 0 && (afterProbe[0] == '>' || afterProbe[0] == ' ' || afterProbe[0] == '/') {
+		return true
+	}
+
+	return false
+}
+
+func isInRCDATA(context, probe string) bool {
+	// Check for <title> or <textarea>
+	titlePattern := regexp.MustCompile(`(?i)<title[^>]*>[\s\S]*?` + regexp.QuoteMeta(probe) + `[\s\S]*?</title>`)
+	if titlePattern.MatchString(context) {
+		return true
+	}
+
+	textareaPattern := regexp.MustCompile(`(?i)<textarea[^>]*>[\s\S]*?` + regexp.QuoteMeta(probe) + `[\s\S]*?</textarea>`)
+	return textareaPattern.MatchString(context)
+}
+
 // isInTemplateLiteral checks if probe is inside JavaScript template literal
 func isInTemplateLiteral(context, probe string) bool {
 	// Check for template literal syntax: `...${probe}...`
@@ -274,7 +371,24 @@ func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) 
 			return "<svg onload=alert(1)>"
 		}
 
-	case models.ContextJavaScript:
+	case models.ContextJSSingleQuote:
+		if hasSquote {
+			return "';alert(1);//"
+		}
+		// Fallback if single quote is filtered but we are in single quote context (hard to exploit)
+
+	case models.ContextJSDoubleQuote:
+		if hasDquote {
+			return "\";alert(1);//"
+		}
+
+	case models.ContextJSRaw:
+		if hasParen {
+			return ";alert(1);//"
+		}
+		return "alert(1)"
+
+	case models.ContextJavaScript: // Deprecated fallback
 		if hasSquote {
 			return "';alert(1);//"
 		}
@@ -288,6 +402,12 @@ func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) 
 	case models.ContextAttribute:
 		// Priority 1: If we have < and >, break out of tag completely
 		if hasGt && hasLt {
+			if hasDquote {
+				return "\"><script>alert(1)</script>"
+			}
+			if hasSquote {
+				return "'><script>alert(1)</script>"
+			}
 			return "><script>alert(1)</script>"
 		}
 		// Priority 2: If we have quotes and space, use event handler
@@ -296,7 +416,7 @@ func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) 
 			if hasDquote {
 				quote = "\""
 			}
-			return quote + " onload=" + quote + "alert(1)"
+			return quote + " onmouseover=" + quote + "alert(1)"
 		}
 
 	case models.ContextCSS:
@@ -306,6 +426,17 @@ func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) 
 		return "x:expression(alert(1))"
 
 	case models.ContextURL:
+		// Priority 1: Break out of tag (same as Attribute)
+		if hasGt && hasLt {
+			if hasDquote {
+				return "\"><script>alert(1)</script>"
+			}
+			if hasSquote {
+				return "'><script>alert(1)</script>"
+			}
+			return "><script>alert(1)</script>"
+		}
+		// Priority 2: Javascript protocol
 		return "javascript:alert(1)"
 
 	case models.ContextTemplateLiteral:
@@ -343,6 +474,19 @@ func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) 
 	case models.ContextComment:
 		if hasGt && hasLt {
 			return "--><script>alert(1)</script><!--"
+		}
+
+	case models.ContextTagName:
+		if hasGt && hasSpace && hasEquals {
+			return " onload=alert(1)>"
+		}
+		if hasGt && hasLt {
+			return "><script>alert(1)</script>"
+		}
+
+	case models.ContextRCDATA:
+		if hasLt && hasGt && hasSlash {
+			return "</title><script>alert(1)</script>" // Works for textarea too as generic closer
 		}
 	}
 
