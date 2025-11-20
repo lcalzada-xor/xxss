@@ -144,6 +144,9 @@ func (s *Scanner) checkBodyReflection(config *models.RequestConfig, params map[s
 	}
 
 	resp, err := s.client.Do(req)
+	s.requestMutex.Lock()
+	s.requestCount++
+	s.requestMutex.Unlock()
 	if err != nil {
 		return reflected, err
 	}
@@ -213,6 +216,9 @@ func (s *Scanner) probeBodyParameter(config *models.RequestConfig, param string,
 	}
 
 	resp, err := s.client.Do(req)
+	s.requestMutex.Lock()
+	s.requestCount++
+	s.requestMutex.Unlock()
 	if err != nil {
 		return models.Result{}, err
 	}
@@ -301,6 +307,9 @@ func (s *Scanner) probeHeader(targetURL, header string) (models.Result, error) {
 	}
 
 	resp, err := s.client.Do(req)
+	s.requestMutex.Lock()
+	s.requestCount++
+	s.requestMutex.Unlock()
 	if err != nil {
 		return models.Result{}, err
 	}
@@ -337,6 +346,9 @@ func (s *Scanner) probeHeader(targetURL, header string) (models.Result, error) {
 	}
 
 	resp2, err := s.client.Do(req2)
+	s.requestMutex.Lock()
+	s.requestCount++
+	s.requestMutex.Unlock()
 	if err != nil {
 		return models.Result{}, err
 	}

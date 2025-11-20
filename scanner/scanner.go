@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lcalzada-xor/xxss/models"
@@ -17,6 +18,8 @@ type Scanner struct {
 	headers       map[string]string
 	useRawPayload bool
 	blindURL      string
+	requestCount  int
+	requestMutex  sync.Mutex
 }
 
 func NewScanner(client *http.Client, headers map[string]string) *Scanner {
@@ -25,6 +28,7 @@ func NewScanner(client *http.Client, headers map[string]string) *Scanner {
 		headers:       headers,
 		useRawPayload: false,
 		blindURL:      "",
+		requestCount:  0,
 	}
 }
 
@@ -36,6 +40,20 @@ func (s *Scanner) SetBlindURL(url string) {
 // SetRawPayload enables or disables raw payload mode (no URL encoding)
 func (s *Scanner) SetRawPayload(raw bool) {
 	s.useRawPayload = raw
+}
+
+// GetRequestCount returns the number of HTTP requests made
+func (s *Scanner) GetRequestCount() int {
+	s.requestMutex.Lock()
+	defer s.requestMutex.Unlock()
+	return s.requestCount
+}
+
+// ResetRequestCount resets the request counter to zero
+func (s *Scanner) ResetRequestCount() {
+	s.requestMutex.Lock()
+	defer s.requestMutex.Unlock()
+	s.requestCount = 0
 }
 
 // Scan performs the XSS scan on the given URL.
@@ -81,45 +99,50 @@ func (s *Scanner) checkReflection(targetURL string) ([]string, error) {
 		return reflected, err
 	}
 
-	// For each parameter, inject a unique value to avoid false positives
-	// from common values like "1", "en", "test"
+	// Test each parameter individually to avoid false negatives
+	// when a parameter's reflection depends on another parameter's value
 	rand.Seed(time.Now().UnixNano())
-	paramProbes := make(map[string]string)
-	qs := u.Query()
+	originalQS := u.Query()
 
-	for key := range qs {
-		// Generate unique probe for this parameter
-		paramProbes[key] = fmt.Sprintf("xxss_%d_%d", time.Now().UnixNano(), rand.Intn(10000))
-		qs.Set(key, paramProbes[key])
-	}
+	for key := range originalQS {
+		// Create a fresh copy of query parameters for each test
+		testQS := u.Query()
 
-	u.RawQuery = qs.Encode()
+		// Generate unique probe for THIS parameter only
+		probe := fmt.Sprintf("xxss_%d_%d", time.Now().UnixNano(), rand.Intn(10000))
+		testQS.Set(key, probe)
 
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return reflected, err
-	}
-	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
+		// Build test URL with only this parameter modified
+		testURL := *u
+		testURL.RawQuery = testQS.Encode()
 
-	// Add custom headers
-	for k, v := range s.headers {
-		req.Header.Set(k, v)
-	}
+		req, err := http.NewRequest("GET", testURL.String(), nil)
+		if err != nil {
+			continue // Skip this parameter on error
+		}
+		req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
 
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return reflected, err
-	}
-	defer resp.Body.Close()
+		// Add custom headers
+		for k, v := range s.headers {
+			req.Header.Set(k, v)
+		}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return reflected, err
-	}
-	body := string(bodyBytes)
+		resp, err := s.client.Do(req)
+		s.requestMutex.Lock()
+		s.requestCount++
+		s.requestMutex.Unlock()
+		if err != nil {
+			continue // Skip this parameter on error
+		}
 
-	// Check which unique probes are reflected
-	for key, probe := range paramProbes {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			continue // Skip this parameter on error
+		}
+		body := string(bodyBytes)
+
+		// Check if this probe is reflected
 		if strings.Contains(body, probe) {
 			reflected = append(reflected, key)
 		}
@@ -183,6 +206,9 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 	}
 
 	resp, err := s.client.Do(req)
+	s.requestMutex.Lock()
+	s.requestCount++
+	s.requestMutex.Unlock()
 	if err != nil {
 		return models.Result{}, err
 	}

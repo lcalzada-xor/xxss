@@ -147,7 +147,7 @@ func main() {
 			"      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m\n" +
 			"    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m\n" +
 			"   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m\n" +
-			"           \x1b[38;5;141mv1.4.1\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
+			"           \x1b[38;5;141mv1.4.2\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
 
 		fmt.Fprint(os.Stderr, banner)
 		h := `
@@ -239,7 +239,7 @@ EXAMPLES:
 		fmt.Fprintln(os.Stderr, "      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m")
 		fmt.Fprintln(os.Stderr, "    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m")
 		fmt.Fprintln(os.Stderr, "   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m")
-		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv1.4.1\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
+		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv1.4.2\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
 		fmt.Fprintln(os.Stderr, "")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", concurrency)
@@ -260,10 +260,11 @@ EXAMPLES:
 
 	// Statistics
 	var (
-		totalURLs   int
-		scannedURLs int
-		foundVulns  int
-		statsMutex  sync.Mutex
+		totalURLs     int
+		scannedURLs   int
+		foundVulns    int
+		totalRequests int
+		statsMutex    sync.Mutex
 	)
 
 	// Worker pool
@@ -283,21 +284,29 @@ EXAMPLES:
 
 				var allResults []models.Result
 				var urlPrinted bool
+				var urlRequests int
 
 				// 1. Scan GET parameters (default)
 				if method == "GET" || method == "" {
+					sc.ResetRequestCount()
 					results, err := sc.Scan(url)
 					if err != nil {
 						if verbose && !silent {
 							fmt.Fprintf(os.Stderr, "[!] Error scanning GET %s: %v\n", url, err)
 						}
 					} else {
+						reqCount := sc.GetRequestCount()
+						urlRequests += reqCount
+						statsMutex.Lock()
+						totalRequests += reqCount
+						statsMutex.Unlock()
 						allResults = append(allResults, results...)
 					}
 				}
 
 				// 2. Scan POST/PUT/PATCH body parameters
 				if method != "GET" && method != "" && data != "" {
+					sc.ResetRequestCount()
 					config := &models.RequestConfig{
 						Method:      models.HTTPMethod(method),
 						URL:         url,
@@ -310,12 +319,18 @@ EXAMPLES:
 							fmt.Fprintf(os.Stderr, "[!] Error scanning %s body: %v\n", method, err)
 						}
 					} else {
+						reqCount := sc.GetRequestCount()
+						urlRequests += reqCount
+						statsMutex.Lock()
+						totalRequests += reqCount
+						statsMutex.Unlock()
 						allResults = append(allResults, results...)
 					}
 				}
 
 				// 3. Scan HTTP headers
 				if scanHeaders {
+					sc.ResetRequestCount()
 					headers := strings.Split(headerList, ",")
 					results, err := sc.ScanHeaders(url, headers)
 					if err != nil {
@@ -323,8 +338,17 @@ EXAMPLES:
 							fmt.Fprintf(os.Stderr, "[!] Error scanning headers: %v\n", err)
 						}
 					} else {
+						reqCount := sc.GetRequestCount()
+						urlRequests += reqCount
+						statsMutex.Lock()
+						totalRequests += reqCount
+						statsMutex.Unlock()
 						allResults = append(allResults, results...)
 					}
+				}
+
+				if verbose && !silent && urlRequests > 0 {
+					fmt.Fprintf(os.Stderr, "[*] %s: %d HTTP requests\n", url, urlRequests)
 				}
 
 				for _, res := range allResults {
@@ -390,7 +414,7 @@ EXAMPLES:
 	// Print statistics
 	if !silent {
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintf(os.Stderr, "[*] Scan complete: %d URLs processed, %d vulnerabilities found\n", scannedURLs, foundVulns)
+		fmt.Fprintf(os.Stderr, "[*] Scan complete: %d URLs processed, %d vulnerabilities found, %d HTTP requests\n", scannedURLs, foundVulns, totalRequests)
 	}
 }
 

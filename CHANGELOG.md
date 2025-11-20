@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.4.2] - 2025-11-20
+
+### Fixed
+- **Critical**: Parameter reflection detection bug where parameters were tested simultaneously, causing false negatives when reflection depended on other parameters. Now tests each parameter individually.
+
+### Added
+- **Feature**: HTTP request counter in verbose mode (`-v`) and final statistics to track the number of requests made during scanning.
+
 ## [v1.4.1] - 2025-11-20
 
 ### Fixed
