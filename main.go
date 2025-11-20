@@ -23,21 +23,32 @@ func formatOutput(res models.Result, format string) string {
 		return res.URL
 
 	case "human":
-		// Human-readable format
+		// Human-readable format (Purple Gothic Theme)
+		// Colors:
+		// Purple: \033[38;5;129m
+		// Light Purple: \033[38;5;141m
+		// Dark Purple: \033[38;5;93m
+		// Reset: \033[0m
+
+		cPurple := "\033[38;5;129m"
+		cLightPurple := "\033[38;5;141m"
+		cDarkPurple := "\033[38;5;93m"
+		cReset := "\033[0m"
+
 		var sb strings.Builder
-		sb.WriteString("\n[+] XSS Vulnerability Found\n")
-		sb.WriteString(fmt.Sprintf("    URL:        %s\n", res.URL))
-		sb.WriteString(fmt.Sprintf("    Method:     %s\n", res.Method))
-		sb.WriteString(fmt.Sprintf("    Parameter:  %s\n", res.Parameter))
-		sb.WriteString(fmt.Sprintf("    Injection:  %s\n", res.InjectionType))
-		sb.WriteString(fmt.Sprintf("    Context:    %s\n", res.Context))
-		sb.WriteString(fmt.Sprintf("    Exploitable: %v\n", res.Exploitable))
-		sb.WriteString(fmt.Sprintf("    Unfiltered: %v\n", res.Unfiltered))
+		sb.WriteString(fmt.Sprintf("\n%s[+] XSS Vulnerability Found%s\n", cPurple, cReset))
+		sb.WriteString(fmt.Sprintf("    %sURL:%s        %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.URL, cReset))
+		sb.WriteString(fmt.Sprintf("    %sMethod:%s     %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.Method, cReset))
+		sb.WriteString(fmt.Sprintf("    %sParameter:%s  %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.Parameter, cReset))
+		sb.WriteString(fmt.Sprintf("    %sInjection:%s  %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.InjectionType, cReset))
+		sb.WriteString(fmt.Sprintf("    %sContext:%s    %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.Context, cReset))
+		sb.WriteString(fmt.Sprintf("    %sExploitable:%s %s%v%s\n", cDarkPurple, cReset, cLightPurple, res.Exploitable, cReset))
+		sb.WriteString(fmt.Sprintf("    %sUnfiltered:%s %s%v%s\n", cDarkPurple, cReset, cLightPurple, res.Unfiltered, cReset))
 		if res.SuggestedPayload != "" {
-			sb.WriteString(fmt.Sprintf("    Payload:    %s\n", res.SuggestedPayload))
+			sb.WriteString(fmt.Sprintf("    %sPayload:%s    %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.SuggestedPayload, cReset))
 		}
 		if res.SecurityHeaders.CSP != "" {
-			sb.WriteString(fmt.Sprintf("    CSP:        %s\n", res.SecurityHeaders.CSP))
+			sb.WriteString(fmt.Sprintf("    %sCSP:%s        %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.SecurityHeaders.CSP, cReset))
 		}
 		return sb.String()
 
@@ -123,14 +134,14 @@ func main() {
 	// Custom Usage function
 	flag.Usage = func() {
 		banner := `
-       \033[31m_..._\033[0m
-     \033[31m.'     '.\033[0m
-    \033[31m/  \033[1;30m_\033[0;31m   \033[1;30m_\033[0;31m  \\\033[0m
-    \033[31m|  \033[1;30mo\033[0;31m   \033[1;30mo\033[0;31m  |\033[0m
-    \033[31m|    ^\    |\033[0m
-    \033[31m|   \033[1;37mV\033[0;31m-\033[1;37mV\033[0;31m   |\033[0m
-     \033[31m\_______/\033[0m
-           \033[1;30mv1.3.0\033[0m | \033[1;30m@lcalzada-xor\033[0m
+   \033[38;5;93m▄▀▀▄  ▄▀▄  ▄▀▀▄  ▄▀▄  ▄▀▀▀▀▄  ▄▀▀▀▀▄ \033[0m
+  \033[38;5;129m█    █   █ █    █   █ █ █   ▐ █ █   ▐ \033[0m
+  \033[38;5;141m▐     ▀▄▀  ▐     ▀▄▀     ▀▄      ▀▄   \033[0m
+       \033[38;5;129m▄▀ █       ▄▀ █  ▀▄   █  ▀▄   █  \033[0m
+      \033[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \033[0m
+    \033[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \033[0m
+   \033[38;5;57m█    ▐     █    ▐                    \033[0m
+           \033[38;5;141mv1.3.0\033[0m | \033[38;5;141m@lcalzada-xor\033[0m
 `
 		fmt.Fprint(os.Stderr, banner)
 		h := `
@@ -202,14 +213,14 @@ EXAMPLES:
 	// Print banner unless silent
 	if !silent {
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "       \033[31m_..._\033[0m")
-		fmt.Fprintln(os.Stderr, "     \033[31m.'     '.\033[0m")
-		fmt.Fprintln(os.Stderr, "    \033[31m/  \033[1;30m_\033[0;31m   \033[1;30m_\033[0;31m  \\\033[0m")
-		fmt.Fprintln(os.Stderr, "    \033[31m|  \033[1;30mo\033[0;31m   \033[1;30mo\033[0;31m  |\033[0m")
-		fmt.Fprintln(os.Stderr, "    \033[31m|    ^\\    |\033[0m")
-		fmt.Fprintln(os.Stderr, "    \033[31m|   \033[1;37mV\033[0;31m-\033[1;37mV\033[0;31m   |\033[0m")
-		fmt.Fprintln(os.Stderr, "     \033[31m\\_______/\033[0m")
-		fmt.Fprintln(os.Stderr, "           \033[1;30mv1.3.0\033[0m | \033[1;30m@lcalzada-xor\033[0m")
+		fmt.Fprintln(os.Stderr, "   \033[38;5;93m▄▀▀▄  ▄▀▄  ▄▀▀▄  ▄▀▄  ▄▀▀▀▀▄  ▄▀▀▀▀▄ \033[0m")
+		fmt.Fprintln(os.Stderr, "  \033[38;5;129m█    █   █ █    █   █ █ █   ▐ █ █   ▐ \033[0m")
+		fmt.Fprintln(os.Stderr, "  \033[38;5;141m▐     ▀▄▀  ▐     ▀▄▀     ▀▄      ▀▄   \033[0m")
+		fmt.Fprintln(os.Stderr, "       \033[38;5;129m▄▀ █       ▄▀ █  ▀▄   █  ▀▄   █  \033[0m")
+		fmt.Fprintln(os.Stderr, "      \033[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \033[0m")
+		fmt.Fprintln(os.Stderr, "    \033[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \033[0m")
+		fmt.Fprintln(os.Stderr, "   \033[38;5;57m█    ▐     █    ▐                    \033[0m")
+		fmt.Fprintln(os.Stderr, "           \033[38;5;141mv1.3.0\033[0m | \033[38;5;141m@lcalzada-xor\033[0m")
 		fmt.Fprintln(os.Stderr, "")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", concurrency)
