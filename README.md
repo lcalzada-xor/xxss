@@ -15,22 +15,28 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
 
 ## 🚀 Features
 
-- **Fast & Efficient**: Optimized for speed with concurrent scanning.
-- **Smart Detection**:
-  - **Context-Aware**: Detects HTML, JavaScript, Attribute, URL, and Comment contexts.
-  - **Security Headers**: Analyzes CSP and other headers to determine exploitability.
-  - **HTML Encoding Detection**: Identifies when special characters are encoded.
+- **Fast & Efficient**: 
+  - Optimized connection pooling that scales with concurrency
+  - ~20,000 requests/second throughput
+  - Smart single-shot probing strategy
+- **Advanced Detection**:
+  - **10 Context Types**: HTML, JavaScript, Template Literals, CSS, Attribute, URL, Data URIs, SVG, Meta Refresh, Comment
+  - **Blind XSS**: Full support for GET, POST body, and header injections
+  - **Security Headers**: Analyzes CSP and other headers to determine exploitability
+  - **HTML Encoding Detection**: Identifies when special characters are encoded
 - **Comprehensive Scanning**:
-  - **GET/POST/PUT/PATCH**: Support for various HTTP methods.
-  - **Header Injection**: Scans HTTP headers (User-Agent, Referer, etc.) for XSS.
+  - **GET/POST/PUT/PATCH**: Support for various HTTP methods
+  - **Header Injection**: Scans HTTP headers (User-Agent, Referer, etc.) for XSS
+  - **Body Parameters**: Form-urlencoded and JSON support
 - **Flexible Output**:
-  - **URL** (default): Pipe-friendly for tools like `dalfox`.
-  - **Human**: Pretty-printed findings with context and payloads.
-  - **JSON**: Structured output for automation.
+  - **URL** (default): Pipe-friendly for tools like `dalfox`
+  - **Human**: Pretty-printed findings with context and payloads
+  - **JSON**: Structured output for automation
 - **Customizable**:
-  - Filter reflected characters (`-allow`, `-ignore`).
-  - Raw payload mode (`--raw`).
-  - Proxy support.
+  - Filter reflected characters (`-allow`, `-ignore`)
+  - Blind XSS callback URL (`-b`)
+  - Raw payload mode (`--raw`)
+  - Proxy support
 
 ## Installation
 
@@ -48,6 +54,7 @@ go install github.com/lcalzada-xor/xxss@latest
 | `--ignore` | `-i` | Comma-separated list of ignored chars (e.g., `',"`)| `""` |
 | `--proxy` | `-x` | Proxy URL (e.g., `http://127.0.0.1:8080`) | `""` |
 | `--header` | `-H` | Custom header (e.g., `Cookie: session=123`) | `""` |
+| `--blind` | `-b` | Blind XSS callback URL (e.g., `https://xss.hunter`) | `""` |
 | `--raw` | `-r` | Send payloads without URL encoding | `false` |
 
 ## 💡 Examples
@@ -111,13 +118,19 @@ This approach gives you:
 - 🎯 **Accuracy**: dalfox confirms real exploitability
 - 💰 **Efficiency**: Focus manual testing on verified vulnerabilities
 
-### Detected Characters
+### Detected Contexts
 
-xxss now detects **21 special characters** including:
-- HTML/XML: `<`, `>`, `"`, `'`, `&`, `/`
-- JavaScript: `$`, `(`, `)`, `` ` ``, `{`, `}`
-- Attributes: `=`, `:`, `;`, space, tab
-- Encoding: `%`, `#`, `\`, `|`
+xxss now detects **10 reflection contexts** including:
+- **HTML**: `<div>{{input}}</div>`
+- **JavaScript**: `<script>var x = '{{input}}';</script>`
+- **Template Literals**: `` <script>const x = `${input}`;</script> ``
+- **Attribute**: `<div class="{{input}}">`
+- **URL**: `<a href="{{input}}">`
+- **Data URI**: `<a href="data:text/html,{{input}}">`
+- **SVG**: `<svg><text>{{input}}</text></svg>`
+- **Meta Refresh**: `<meta http-equiv="refresh" content="0;url={{input}}">`
+- **CSS**: `<style>.class { color: {{input}}; }</style>`
+- **Comment**: `<!-- {{input}} -->`
 
 ## 🤝 Contributing
 

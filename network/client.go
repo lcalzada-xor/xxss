@@ -8,18 +8,37 @@ import (
 	"time"
 )
 
-// NewClient creates a new HTTP client with custom timeouts and transport settings.
-func NewClient(timeout time.Duration, proxyURL string) *http.Client {
+// NewClient creates a new HTTP client with optimized connection pooling and optional rate limiting.
+// The pooling parameters scale dynamically based on concurrency level.
+// rateLimit: requests per second (0 = unlimited)
+func NewClient(timeout time.Duration, proxyURL string, concurrency int, rateLimit float64) (*http.Client, *RateLimiter) {
+	// Calculate optimal pool sizes based on concurrency
+	maxIdleConns := concurrency * 2
+	maxIdleConnsPerHost := max(concurrency/2, 10)
+	maxConnsPerHost := concurrency
+
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		DialContext: (&net.Dialer{
 			Timeout:   timeout,
-			KeepAlive: time.Second,
+			KeepAlive: 30 * time.Second,
 			DualStack: true,
 		}).DialContext,
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 10,
-		IdleConnTimeout:     90 * time.Second,
+
+		// Connection pooling - scales with concurrency
+		MaxIdleConns:        maxIdleConns,
+		MaxIdleConnsPerHost: maxIdleConnsPerHost,
+		MaxConnsPerHost:     maxConnsPerHost,
+		IdleConnTimeout:     30 * time.Second,
+
+		// Additional timeouts for better performance
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: timeout,
+		ExpectContinueTimeout: 1 * time.Second,
+
+		// Performance optimizations
+		DisableCompression: false,
+		DisableKeepAlives:  false,
 	}
 
 	if proxyURL != "" {
@@ -36,5 +55,16 @@ func NewClient(timeout time.Duration, proxyURL string) *http.Client {
 		},
 	}
 
-	return client
+	// Create rate limiter
+	rateLimiter := NewRateLimiter(rateLimit)
+
+	return client, rateLimiter
+}
+
+// max returns the maximum of two integers
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

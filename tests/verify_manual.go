@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"github.com/lcalzada-xor/xxss/scanner"
 )
 
-func main() {
+func verifyManualMain() {
 	if err := runTests(); err != nil {
 		fmt.Println("FAIL: " + err.Error())
 		os.Exit(1)
@@ -28,7 +28,7 @@ func runTests() error {
 	}))
 	defer proxyServer.Close()
 
-	client := network.NewClient(2*time.Second, proxyServer.URL)
+	client, _ := network.NewClient(2*time.Second, proxyServer.URL, 10, 0)
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
 	client.Do(req)
 
@@ -45,7 +45,7 @@ func runTests() error {
 	}))
 	defer server.Close()
 
-	client2 := network.NewClient(2*time.Second, "")
+	client2, _ := network.NewClient(2*time.Second, "", 10, 0)
 	headers := map[string]string{
 		"X-Custom": "MyHeader",
 	}

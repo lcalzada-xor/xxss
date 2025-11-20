@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -56,7 +57,8 @@ func formatOutput(res models.Result, format string) string {
 		// JSON format
 		output, err := json.Marshal(res)
 		if err != nil {
-			return ""
+			// Return error as JSON instead of empty string
+			return fmt.Sprintf("{\"error\":\"failed to marshal result: %v\"}", err)
 		}
 		return string(output)
 
@@ -81,6 +83,7 @@ func main() {
 		scanHeaders  bool
 		headerList   string
 		outputFormat string
+		blindURL     string
 	)
 
 	// Define flags with both short and long names
@@ -131,6 +134,9 @@ func main() {
 	flag.StringVar(&outputFormat, "o", "url", "Output format: url, human, json")
 	flag.StringVar(&outputFormat, "output", "url", "Output format: url, human, json")
 
+	flag.StringVar(&blindURL, "b", "", "Blind XSS callback URL (e.g. https://xss.hunter)")
+	flag.StringVar(&blindURL, "blind", "", "Blind XSS callback URL (e.g. https://xss.hunter)")
+
 	// Custom Usage function
 	flag.Usage = func() {
 		banner := "\n" +
@@ -141,7 +147,7 @@ func main() {
 			"      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m\n" +
 			"    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m\n" +
 			"   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m\n" +
-			"           \x1b[38;5;141mv1.3.2\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
+			"           \x1b[38;5;141mv1.4.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
 
 		fmt.Fprint(os.Stderr, banner)
 		h := `
@@ -170,6 +176,7 @@ OUTPUT:
   -o,  --output string       Output format: url, human, json (default "url")
   -v,  --verbose             Verbose output (show progress and details)
   -s,  --silent              Silent mode (suppress banner and errors)
+  -b,  --blind string        Blind XSS callback URL
 
 EXAMPLES:
   echo "http://example.com/?p=val" | xxss
@@ -206,9 +213,20 @@ EXAMPLES:
 		}
 	}
 
-	client := network.NewClient(timeout, proxy)
+	// Create HTTP client with optimized connection pooling
+	client, _ := network.NewClient(timeout, proxy, concurrency, 0)
 	sc := scanner.NewScanner(client, headerMap)
 	sc.SetRawPayload(rawPayload)
+	if blindURL != "" {
+		// Validate blind URL
+		if _, err := url.Parse(blindURL); err != nil {
+			if !silent {
+				fmt.Fprintf(os.Stderr, "Error: Invalid blind URL: %v\n", err)
+			}
+			os.Exit(1)
+		}
+		sc.SetBlindURL(blindURL)
+	}
 
 	// Print banner unless silent
 	if !silent {
@@ -221,7 +239,7 @@ EXAMPLES:
 		fmt.Fprintln(os.Stderr, "      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m")
 		fmt.Fprintln(os.Stderr, "    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m")
 		fmt.Fprintln(os.Stderr, "   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m")
-		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv1.3.2\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
+		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv1.4.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
 		fmt.Fprintln(os.Stderr, "")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", concurrency)
@@ -264,6 +282,7 @@ EXAMPLES:
 				}
 
 				var allResults []models.Result
+				var urlPrinted bool
 
 				// 1. Scan GET parameters (default)
 				if method == "GET" || method == "" {
@@ -337,9 +356,16 @@ EXAMPLES:
 					}
 
 					// Output based on selected format
-					output := formatOutput(res, outputFormat)
-					if output != "" {
-						fmt.Println(output)
+					if outputFormat == "url" {
+						if !urlPrinted {
+							fmt.Println(res.URL)
+							urlPrinted = true
+						}
+					} else {
+						output := formatOutput(res, outputFormat)
+						if output != "" {
+							fmt.Println(output)
+						}
 					}
 				}
 			}

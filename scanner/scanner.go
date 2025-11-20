@@ -2,7 +2,7 @@ package scanner
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -16,6 +16,7 @@ type Scanner struct {
 	client        *http.Client
 	headers       map[string]string
 	useRawPayload bool
+	blindURL      string
 }
 
 func NewScanner(client *http.Client, headers map[string]string) *Scanner {
@@ -23,7 +24,13 @@ func NewScanner(client *http.Client, headers map[string]string) *Scanner {
 		client:        client,
 		headers:       headers,
 		useRawPayload: false,
+		blindURL:      "",
 	}
+}
+
+// SetBlindURL sets the callback URL for Blind XSS attacks
+func (s *Scanner) SetBlindURL(url string) {
+	s.blindURL = url
 }
 
 // SetRawPayload enables or disables raw payload mode (no URL encoding)
@@ -47,6 +54,11 @@ func (s *Scanner) Scan(targetURL string) ([]models.Result, error) {
 
 	// 2. Single-Shot Probe: For each reflected param, inject all chars.
 	for _, param := range reflectedParams {
+		// Blind XSS Injection
+		if s.blindURL != "" {
+			s.InjectBlind(targetURL, param, s.blindURL)
+		}
+
 		result, err := s.probeParameter(targetURL, param)
 		if err != nil {
 			// Log error but continue with other params?
@@ -100,7 +112,7 @@ func (s *Scanner) checkReflection(targetURL string) ([]string, error) {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return reflected, err
 	}
@@ -176,7 +188,7 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return models.Result{}, err
 	}
@@ -195,6 +207,9 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 
 	// Get suggested payload
 	suggestedPayload := GetSuggestedPayload(context, unfiltered)
+	if suggestedPayload == "" {
+		suggestedPayload = GetPolyglot(context)
+	}
 
 	return models.Result{
 		URL:              targetURL,

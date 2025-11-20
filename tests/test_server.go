@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func main() {
+func testServerMain() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		param := r.URL.Query().Get("p")
 		w.Header().Set("Content-Type", "text/html")

@@ -30,7 +30,7 @@ func TestPOSTFormScan(t *testing.T) {
 		ContentType: models.ContentTypeForm,
 	}
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.ScanRequest(config)
@@ -79,7 +79,7 @@ func TestPOSTJSONScan(t *testing.T) {
 		ContentType: models.ContentTypeJSON,
 	}
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.ScanRequest(config)
@@ -118,7 +118,7 @@ func TestPUTScan(t *testing.T) {
 		ContentType: models.ContentTypeJSON,
 	}
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.ScanRequest(config)
@@ -148,7 +148,7 @@ func TestHeaderInjectionScan(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	headers := []string{"User-Agent", "Referer", "X-Forwarded-For"}
@@ -184,7 +184,7 @@ func TestMixedScan(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	// Scan GET parameters

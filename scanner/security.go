@@ -21,7 +21,63 @@ func AnalyzeSecurityHeaders(resp *http.Response) models.SecurityHeaders {
 		headers.XContentTypeOptions == "nosniff" ||
 		strings.Contains(headers.XXSSProtection, "1")
 
+	// Analyze if CSP is bypassable
+	if headers.CSP != "" {
+		headers.CSPBypassable = AnalyzeCSPBypass(headers.CSP)
+	}
+
 	return headers
+}
+
+// AnalyzeCSPBypass checks if CSP can be bypassed
+func AnalyzeCSPBypass(csp string) bool {
+	cspLower := strings.ToLower(csp)
+
+	// Check for unsafe-inline (allows inline scripts)
+	if strings.Contains(cspLower, "unsafe-inline") {
+		return true
+	}
+
+	// Check for unsafe-eval (allows eval())
+	if strings.Contains(cspLower, "unsafe-eval") {
+		return true
+	}
+
+	// Check for wildcard sources (allows any domain)
+	if strings.Contains(cspLower, "script-src *") ||
+		strings.Contains(cspLower, "default-src *") {
+		return true
+	}
+
+	// Check for common bypassable CDNs/domains
+	bypassableDomains := []string{
+		"googleapis.com",   // JSONP endpoints
+		"gstatic.com",      // Google static
+		"cloudflare.com",   // CDN
+		"jsdelivr.net",     // CDN
+		"unpkg.com",        // CDN
+		"cdnjs.cloudflare", // CDN
+		"ajax.googleapis",  // JSONP
+		"*.google.com",     // Wildcard Google
+		"data:",            // Data URIs
+		"blob:",            // Blob URIs
+	}
+
+	for _, domain := range bypassableDomains {
+		if strings.Contains(cspLower, domain) {
+			return true
+		}
+	}
+
+	// Check for base-uri missing (allows base tag injection)
+	if !strings.Contains(cspLower, "base-uri") {
+		// If script-src is restrictive but base-uri is not set, it's bypassable
+		if strings.Contains(cspLower, "script-src") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // IsExploitable determines if XSS is likely exploitable based on context and headers
@@ -39,8 +95,8 @@ func IsExploitable(context models.ReflectionContext, headers models.SecurityHead
 		}
 	}
 
-	// If CSP is strict, likely not exploitable
-	if headers.CSP != "" {
+	// If CSP is strict and NOT bypassable, likely not exploitable
+	if headers.CSP != "" && !headers.CSPBypassable {
 		cspLower := strings.ToLower(headers.CSP)
 
 		// Check if default-src or script-src is restrictive

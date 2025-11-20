@@ -22,7 +22,7 @@ func TestContextDetection_HTML(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.Scan(server.URL + "/?p=test")
@@ -51,7 +51,7 @@ func TestContextDetection_JavaScript(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.Scan(server.URL + "/?p=test")
@@ -85,7 +85,7 @@ func TestContextDetection_Attribute(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.Scan(server.URL + "/?p=test")
@@ -114,7 +114,7 @@ func TestContextDetection_Comment(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.Scan(server.URL + "/?p=test")
@@ -149,7 +149,7 @@ func TestSecurityHeaders_CSP(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.Scan(server.URL + "/?p=test")
@@ -188,7 +188,7 @@ func TestExploitability_WithRequiredChars(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.Scan(server.URL + "/?p=test")
@@ -256,7 +256,7 @@ func TestPayloadSuggestions(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client := network.NewClient(2*time.Second, "")
+			client, _ := network.NewClient(2*time.Second, "", 10, 0)
 			sc := scanner.NewScanner(client, map[string]string{})
 
 			results, err := sc.Scan(server.URL + "/?p=test")

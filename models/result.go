@@ -11,18 +11,23 @@ const (
 type ReflectionContext string
 
 const (
-	ContextHTML       ReflectionContext = "html"
-	ContextJavaScript ReflectionContext = "javascript"
-	ContextCSS        ReflectionContext = "css"
-	ContextAttribute  ReflectionContext = "attribute"
-	ContextURL        ReflectionContext = "url"
-	ContextComment    ReflectionContext = "comment"
-	ContextUnknown    ReflectionContext = "unknown"
+	ContextHTML            ReflectionContext = "html"
+	ContextJavaScript      ReflectionContext = "javascript"
+	ContextTemplateLiteral ReflectionContext = "template_literal"
+	ContextCSS             ReflectionContext = "css"
+	ContextAttribute       ReflectionContext = "attribute"
+	ContextURL             ReflectionContext = "url"
+	ContextDataURI         ReflectionContext = "data_uri"
+	ContextSVG             ReflectionContext = "svg"
+	ContextMetaRefresh     ReflectionContext = "meta_refresh"
+	ContextComment         ReflectionContext = "comment"
+	ContextUnknown         ReflectionContext = "unknown"
 )
 
 type SecurityHeaders struct {
 	ContentType         string `json:"content_type,omitempty"`
 	CSP                 string `json:"csp,omitempty"`
+	CSPBypassable       bool   `json:"csp_bypassable,omitempty"`
 	XContentTypeOptions string `json:"x_content_type_options,omitempty"`
 	XXSSProtection      string `json:"x_xss_protection,omitempty"`
 	HasAntiXSS          bool   `json:"has_anti_xss"`

@@ -23,7 +23,7 @@ func TestHTMLEncodingFalsePositive(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	// Scan the URL with a parameter
@@ -58,7 +58,7 @@ func TestMultipleReflections(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.Scan(server.URL + "/?q=test")
@@ -91,7 +91,7 @@ func TestXSSWithoutQuotes(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.Scan(server.URL + "/?q=test")
@@ -134,7 +134,7 @@ func TestLargeReflection(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	results, err := sc.Scan(server.URL + "/?q=test")
@@ -161,7 +161,7 @@ func TestUniqueBaselineProbe(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	// Test with a common value that might appear elsewhere
@@ -188,7 +188,7 @@ func TestRawPayloadMode(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 	sc.SetRawPayload(true) // Enable raw payload mode
 

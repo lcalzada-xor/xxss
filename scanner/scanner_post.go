@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -47,6 +47,11 @@ func (s *Scanner) ScanRequest(config *models.RequestConfig) ([]models.Result, er
 
 	// 3. Probe each reflected parameter
 	for _, param := range reflectedParams {
+		// Blind XSS Injection for body parameters
+		if s.blindURL != "" {
+			s.InjectBlindBody(config, param, s.blindURL, params)
+		}
+
 		result, err := s.probeBodyParameter(config, param, params)
 		if err != nil {
 			continue
@@ -144,7 +149,7 @@ func (s *Scanner) checkBodyReflection(config *models.RequestConfig, params map[s
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return reflected, err
 	}
@@ -213,7 +218,7 @@ func (s *Scanner) probeBodyParameter(config *models.RequestConfig, param string,
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return models.Result{}, err
 	}
@@ -257,6 +262,11 @@ func (s *Scanner) ScanHeaders(targetURL string, headersToTest []string) ([]model
 			continue
 		}
 
+		// Blind XSS Injection for Headers
+		if s.blindURL != "" {
+			s.InjectBlindHeader(targetURL, header, s.blindURL)
+		}
+
 		result, err := s.probeHeader(targetURL, header)
 		if err != nil {
 			continue
@@ -296,7 +306,7 @@ func (s *Scanner) probeHeader(targetURL, header string) (models.Result, error) {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return models.Result{}, err
 	}
@@ -332,7 +342,7 @@ func (s *Scanner) probeHeader(targetURL, header string) (models.Result, error) {
 	}
 	defer resp2.Body.Close()
 
-	bodyBytes2, err := ioutil.ReadAll(resp2.Body)
+	bodyBytes2, err := io.ReadAll(resp2.Body)
 	if err != nil {
 		return models.Result{}, err
 	}

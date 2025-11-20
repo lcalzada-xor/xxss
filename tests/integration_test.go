@@ -20,7 +20,7 @@ func TestProxySupport(t *testing.T) {
 	defer proxyServer.Close()
 
 	// 2. Create a Client with this proxy
-	client := network.NewClient(2*time.Second, proxyServer.URL)
+	client, _ := network.NewClient(2*time.Second, proxyServer.URL, 10, 0)
 
 	// 3. Make a request to anywhere (should go through proxy)
 	// We need a target that resolves, but the proxy will intercept it effectively if configured right.
@@ -45,7 +45,7 @@ func TestCustomHeaders(t *testing.T) {
 	defer server.Close()
 
 	// 2. Create Scanner with custom headers
-	client := network.NewClient(2*time.Second, "")
+	client, _ := network.NewClient(2*time.Second, "", 10, 0)
 	headers := map[string]string{
 		"X-Custom": "MyHeader",
 	}
