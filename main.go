@@ -30,10 +30,10 @@ func formatOutput(res models.Result, format string) string {
 		// Dark Purple: \033[38;5;93m
 		// Reset: \033[0m
 
-		cPurple := "\033[38;5;129m"
-		cLightPurple := "\033[38;5;141m"
-		cDarkPurple := "\033[38;5;93m"
-		cReset := "\033[0m"
+		cPurple := "\x1b[38;5;129m"
+		cLightPurple := "\x1b[38;5;141m"
+		cDarkPurple := "\x1b[38;5;93m"
+		cReset := "\x1b[0m"
 
 		var sb strings.Builder
 		sb.WriteString(fmt.Sprintf("\n%s[+] XSS Vulnerability Found%s\n", cPurple, cReset))
@@ -133,16 +133,16 @@ func main() {
 
 	// Custom Usage function
 	flag.Usage = func() {
-		banner := `
-   \033[38;5;93m▄▀▀▄  ▄▀▄  ▄▀▀▄  ▄▀▄  ▄▀▀▀▀▄  ▄▀▀▀▀▄ \033[0m
-  \033[38;5;129m█    █   █ █    █   █ █ █   ▐ █ █   ▐ \033[0m
-  \033[38;5;141m▐     ▀▄▀  ▐     ▀▄▀     ▀▄      ▀▄   \033[0m
-       \033[38;5;129m▄▀ █       ▄▀ █  ▀▄   █  ▀▄   █  \033[0m
-      \033[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \033[0m
-    \033[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \033[0m
-   \033[38;5;57m█    ▐     █    ▐                    \033[0m
-           \033[38;5;141mv1.3.0\033[0m | \033[38;5;141m@lcalzada-xor\033[0m
-`
+		banner := "\n" +
+			"   \x1b[38;5;93m▄▀▀▄  ▄▀▄  ▄▀▀▄  ▄▀▄  ▄▀▀▀▀▄  ▄▀▀▀▀▄ \x1b[0m\n" +
+			"  \x1b[38;5;129m█    █   █ █    █   █ █ █   ▐ █ █   ▐ \x1b[0m\n" +
+			"  \x1b[38;5;141m▐     ▀▄▀  ▐     ▀▄▀     ▀▄      ▀▄   \x1b[0m\n" +
+			"       \x1b[38;5;129m▄▀ █       ▄▀ █  ▀▄   █  ▀▄   █  \x1b[0m\n" +
+			"      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m\n" +
+			"    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m\n" +
+			"   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m\n" +
+			"           \x1b[38;5;141mv1.3.2\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
+
 		fmt.Fprint(os.Stderr, banner)
 		h := `
 USAGE:
@@ -213,14 +213,15 @@ EXAMPLES:
 	// Print banner unless silent
 	if !silent {
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "   \033[38;5;93m▄▀▀▄  ▄▀▄  ▄▀▀▄  ▄▀▄  ▄▀▀▀▀▄  ▄▀▀▀▀▄ \033[0m")
-		fmt.Fprintln(os.Stderr, "  \033[38;5;129m█    █   █ █    █   █ █ █   ▐ █ █   ▐ \033[0m")
-		fmt.Fprintln(os.Stderr, "  \033[38;5;141m▐     ▀▄▀  ▐     ▀▄▀     ▀▄      ▀▄   \033[0m")
-		fmt.Fprintln(os.Stderr, "       \033[38;5;129m▄▀ █       ▄▀ █  ▀▄   █  ▀▄   █  \033[0m")
-		fmt.Fprintln(os.Stderr, "      \033[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \033[0m")
-		fmt.Fprintln(os.Stderr, "    \033[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \033[0m")
-		fmt.Fprintln(os.Stderr, "   \033[38;5;57m█    ▐     █    ▐                    \033[0m")
-		fmt.Fprintln(os.Stderr, "           \033[38;5;141mv1.3.0\033[0m | \033[38;5;141m@lcalzada-xor\033[0m")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "   \x1b[38;5;93m▄▀▀▄  ▄▀▄  ▄▀▀▄  ▄▀▄  ▄▀▀▀▀▄  ▄▀▀▀▀▄ \x1b[0m")
+		fmt.Fprintln(os.Stderr, "  \x1b[38;5;129m█    █   █ █    █   █ █ █   ▐ █ █   ▐ \x1b[0m")
+		fmt.Fprintln(os.Stderr, "  \x1b[38;5;141m▐     ▀▄▀  ▐     ▀▄▀     ▀▄      ▀▄   \x1b[0m")
+		fmt.Fprintln(os.Stderr, "       \x1b[38;5;129m▄▀ █       ▄▀ █  ▀▄   █  ▀▄   █  \x1b[0m")
+		fmt.Fprintln(os.Stderr, "      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m")
+		fmt.Fprintln(os.Stderr, "    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m")
+		fmt.Fprintln(os.Stderr, "   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m")
+		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv1.3.2\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
 		fmt.Fprintln(os.Stderr, "")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", concurrency)
