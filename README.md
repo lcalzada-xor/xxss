@@ -4,6 +4,11 @@
 ![Go Version](https://img.shields.io/badge/go-1.21%2B-cyan)
 ![Bug Bounty](https://img.shields.io/badge/Bug%20Bounty-Ready-red)
 
+---
+<img width="372" height="173" alt="imagen" src="https://github.com/user-attachments/assets/57a5b9b2-8120-486a-b4bf-a936a7638424" />
+
+---
+
 **xxss** is a blazing fast, modular, and scalable **Reflected Cross-Site Scripting (XSS) scanner** written in Go. Designed for **bug bounty hunters** and **AppSec engineers**, it serves as a **high-speed screening tool** to identify potentially vulnerable parameters before deeper analysis with tools like `dalfox`.
 
 Unlike traditional scanners that send dozens of requests per parameter, `xxss` uses a smart **single-shot probing strategy**, reducing traffic by over **90%** (approx. 1 request per reflected parameter). It prioritizes **recall over precision** - better to report a potential vulnerability than miss one.
