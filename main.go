@@ -122,29 +122,49 @@ func main() {
 
 	// Custom Usage function
 	flag.Usage = func() {
-		h := `xxss - Fast XSS reflected params prober
-
-Usage:
+		banner := `
+       \033[31m_..._\033[0m
+     \033[31m.'     '.\033[0m
+    \033[31m/  \033[1;30m_\033[0;31m   \033[1;30m_\033[0;31m  \\\033[0m
+    \033[31m|  \033[1;30mo\033[0;31m   \033[1;30mo\033[0;31m  |\033[0m
+    \033[31m|    ^\    |\033[0m
+    \033[31m|   \033[1;37mV\033[0;31m-\033[1;37mV\033[0;31m   |\033[0m
+     \033[31m\_______/\033[0m
+           \033[1;30mv1.3.0\033[0m | \033[1;30m@lcalzada-xor\033[0m
+`
+		fmt.Fprint(os.Stderr, banner)
+		h := `
+USAGE:
   xxss [flags]
 
-Flags:
-  -c, --concurrency int   Concurrency level (default 40)
-  -t, --timeout duration  Request timeout (default 10s)
-  -v, --verbose           Verbose output
-  -s, --silent            Silent mode (suppress errors)
-  -a, --allow string      Comma-separated list of allowed characters (e.g. <,>)
-  -i, --ignore string     Comma-separated list of ignored characters (e.g. ', ")
-  -x, --proxy string      Proxy URL (e.g. http://127.0.0.1:8080)
-  -H, --header string     Custom header (e.g. 'Cookie: session=123')
-  -r, --raw               Send payloads without URL encoding
+SCANNING:
+  -c,  --concurrency int     Number of concurrent workers (default 40)
+  -t,  --timeout duration    Request timeout (default 10s)
+  -x,  --proxy string        Proxy URL (e.g. http://127.0.0.1:8080)
+  -H,  --header string       Custom header (e.g. 'Cookie: session=123')
 
-Examples:
+REQUEST CONFIGURATION:
+  -X,  --method string       HTTP method (GET, POST, PUT, PATCH) (default "GET")
+  -d,  --data string         Request body data for POST/PUT/PATCH
+  -ct, --content-type string Content-Type for request body (default "application/x-www-form-urlencoded")
+  -r,  --raw                 Send payloads without URL encoding
+
+SCOPE & FILTERS:
+  -sh, --scan-headers        Scan HTTP headers for XSS (User-Agent, Referer, etc.)
+  -hl, --headers-list string Comma-separated list of headers to scan (default "User-Agent,Referer,X-Forwarded-For")
+  -a,  --allow string        Comma-separated list of allowed characters (e.g. <,>)
+  -i,  --ignore string       Comma-separated list of ignored characters (e.g. ', ")
+
+OUTPUT:
+  -o,  --output string       Output format: url, human, json (default "url")
+  -v,  --verbose             Verbose output (show progress and details)
+  -s,  --silent              Silent mode (suppress banner and errors)
+
+EXAMPLES:
   echo "http://example.com/?p=val" | xxss
-  cat urls.txt | xxss -c 50 -silent
-  cat urls.txt | xxss --allow "<,>" --ignore "'"
-  echo "http://example.com" | xxss -x http://127.0.0.1:8080
-  echo "http://example.com" | xxss -H "Cookie: session=123"
-  cat urls.txt | xxss --raw  # Send special chars unencoded
+  cat urls.txt | xxss -c 50 -o human
+  echo "http://example.com" | xxss -X POST -d "user=test" -o json
+  echo "http://example.com" | xxss --scan-headers -v
 `
 		fmt.Fprint(os.Stderr, h)
 	}
@@ -182,15 +202,14 @@ Examples:
 	// Print banner unless silent
 	if !silent {
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "  ██╗  ██╗██╗  ██╗███████╗███████╗")
-		fmt.Fprintln(os.Stderr, "  ╚██╗██╔╝╚██╗██╔╝██╔════╝██╔════╝")
-		fmt.Fprintln(os.Stderr, "   ╚███╔╝  ╚███╔╝ ███████╗███████╗")
-		fmt.Fprintln(os.Stderr, "   ██╔██╗  ██╔██╗ ╚════██║╚════██║")
-		fmt.Fprintln(os.Stderr, "  ██╔╝ ██╗██╔╝ ██╗███████║███████║")
-		fmt.Fprintln(os.Stderr, "  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "  Fast XSS Reflected Params Scanner")
-		fmt.Fprintln(os.Stderr, "  v1.3.0 | github.com/lcalzada-xor/xxss")
+		fmt.Fprintln(os.Stderr, "       \033[31m_..._\033[0m")
+		fmt.Fprintln(os.Stderr, "     \033[31m.'     '.\033[0m")
+		fmt.Fprintln(os.Stderr, "    \033[31m/  \033[1;30m_\033[0;31m   \033[1;30m_\033[0;31m  \\\033[0m")
+		fmt.Fprintln(os.Stderr, "    \033[31m|  \033[1;30mo\033[0;31m   \033[1;30mo\033[0;31m  |\033[0m")
+		fmt.Fprintln(os.Stderr, "    \033[31m|    ^\\    |\033[0m")
+		fmt.Fprintln(os.Stderr, "    \033[31m|   \033[1;37mV\033[0;31m-\033[1;37mV\033[0;31m   |\033[0m")
+		fmt.Fprintln(os.Stderr, "     \033[31m\\_______/\033[0m")
+		fmt.Fprintln(os.Stderr, "           \033[1;30mv1.3.0\033[0m | \033[1;30m@lcalzada-xor\033[0m")
 		fmt.Fprintln(os.Stderr, "")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", concurrency)
