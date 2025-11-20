@@ -69,8 +69,35 @@ func isInJavaScript(context, probe string) bool {
 	}
 
 	// Check for inline event handlers (onclick, onload, etc.)
-	eventPattern := regexp.MustCompile(`(?i)on\w+\s*=\s*["'][^"']*` + regexp.QuoteMeta(probe))
-	return eventPattern.MatchString(context)
+	// Need to verify probe is INSIDE the event handler value, not after it
+	probeIndex := strings.Index(context, probe)
+	if probeIndex == -1 {
+		return false
+	}
+
+	before := context[:probeIndex]
+
+	// Look for event handler pattern before probe
+	eventPattern := regexp.MustCompile(`(?i)on\w+\s*=\s*["']?[^"'>]*$`)
+	if !eventPattern.MatchString(before) {
+		return false
+	}
+
+	// Find last < and > to ensure we're in a tag
+	lastTagStart := strings.LastIndex(before, "<")
+	lastTagEnd := strings.LastIndex(before, ">")
+
+	if lastTagEnd > lastTagStart {
+		return false // Not inside a tag
+	}
+
+	// Count quotes to see if we're inside the event handler value
+	afterEvent := before[lastTagStart:]
+	doubleQuotes := strings.Count(afterEvent, "\"")
+	singleQuotes := strings.Count(afterEvent, "'")
+
+	// Odd number of quotes means we're inside
+	return (doubleQuotes%2 == 1) || (singleQuotes%2 == 1)
 }
 
 func isInCSS(context, probe string) bool {
@@ -80,22 +107,101 @@ func isInCSS(context, probe string) bool {
 		return true
 	}
 
-	// Check for inline style attribute
-	inlineStylePattern := regexp.MustCompile(`(?i)style\s*=\s*["'][^"']*` + regexp.QuoteMeta(probe))
-	return inlineStylePattern.MatchString(context)
+	// Check for inline style attribute - verify probe is INSIDE the style value
+	probeIndex := strings.Index(context, probe)
+	if probeIndex == -1 {
+		return false
+	}
+
+	before := context[:probeIndex]
+
+	// Look for style= pattern before probe
+	styleAttrPattern := regexp.MustCompile(`(?i)style\s*=\s*["']?[^"'>]*$`)
+	if !styleAttrPattern.MatchString(before) {
+		return false
+	}
+
+	// Find last < and > to ensure we're in a tag
+	lastTagStart := strings.LastIndex(before, "<")
+	lastTagEnd := strings.LastIndex(before, ">")
+
+	if lastTagEnd > lastTagStart {
+		return false // Not inside a tag
+	}
+
+	// Count quotes to see if we're inside the style value
+	afterStyle := before[lastTagStart:]
+	doubleQuotes := strings.Count(afterStyle, "\"")
+	singleQuotes := strings.Count(afterStyle, "'")
+
+	return (doubleQuotes%2 == 1) || (singleQuotes%2 == 1)
 }
 
 func isInAttribute(context, probe string) bool {
 	// Check if inside HTML tag attribute value
-	// Pattern: <tag attr="value with probe" or <tag attr='value with probe' or <tag attr=value
-	attrPattern := regexp.MustCompile(`<[^>]*\s+\w+\s*=\s*["']?[^"'>]*` + regexp.QuoteMeta(probe))
-	return attrPattern.MatchString(context)
+	// We need to be more precise: the probe must be INSIDE the attribute value
+	// Pattern: <tag attr="...probe..." or <tag attr='...probe...'
+	// NOT just: <tag attr="value"> probe (which would be HTML context)
+
+	// Find the probe position
+	probeIndex := strings.Index(context, probe)
+	if probeIndex == -1 {
+		return false
+	}
+
+	// Look backwards from probe to find if we're inside quotes within a tag
+	before := context[:probeIndex]
+
+	// Find the last < before the probe
+	lastTagStart := strings.LastIndex(before, "<")
+	// Find the last > before the probe
+	lastTagEnd := strings.LastIndex(before, ">")
+
+	// If the last > is after the last <, we're NOT inside a tag
+	if lastTagEnd > lastTagStart {
+		return false
+	}
+
+	// We're potentially inside a tag, now check if we're inside an attribute value
+	// Count quotes after the last <
+	afterTagStart := before[lastTagStart:]
+	doubleQuotes := strings.Count(afterTagStart, "\"")
+	singleQuotes := strings.Count(afterTagStart, "'")
+
+	// If odd number of quotes, we're inside an attribute value
+	return (doubleQuotes%2 == 1) || (singleQuotes%2 == 1)
 }
 
 func isInURL(context, probe string) bool {
 	// Check if inside href, src, action, data attributes
-	urlPattern := regexp.MustCompile(`(?i)(href|src|action|data|formaction)\s*=\s*["']?[^"'>]*` + regexp.QuoteMeta(probe))
-	return urlPattern.MatchString(context)
+	// Need to verify probe is INSIDE the URL value
+	probeIndex := strings.Index(context, probe)
+	if probeIndex == -1 {
+		return false
+	}
+
+	before := context[:probeIndex]
+
+	// Look for URL attribute pattern before probe
+	urlAttrPattern := regexp.MustCompile(`(?i)(href|src|action|data|formaction)\s*=\s*["']?[^"'>]*$`)
+	if !urlAttrPattern.MatchString(before) {
+		return false
+	}
+
+	// Find last < and > to ensure we're in a tag
+	lastTagStart := strings.LastIndex(before, "<")
+	lastTagEnd := strings.LastIndex(before, ">")
+
+	if lastTagEnd > lastTagStart {
+		return false // Not inside a tag
+	}
+
+	// Count quotes to see if we're inside the URL value
+	afterAttr := before[lastTagStart:]
+	doubleQuotes := strings.Count(afterAttr, "\"")
+	singleQuotes := strings.Count(afterAttr, "'")
+
+	return (doubleQuotes%2 == 1) || (singleQuotes%2 == 1)
 }
 
 func isInComment(context, probe string) bool {
@@ -180,15 +286,17 @@ func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) 
 		}
 
 	case models.ContextAttribute:
+		// Priority 1: If we have < and >, break out of tag completely
+		if hasGt && hasLt {
+			return "><script>alert(1)</script>"
+		}
+		// Priority 2: If we have quotes and space, use event handler
 		if hasQuote && hasSpace {
 			quote := "'"
 			if hasDquote {
 				quote = "\""
 			}
 			return quote + " onload=" + quote + "alert(1)"
-		}
-		if hasGt && hasLt {
-			return "><script>alert(1)</script>"
 		}
 
 	case models.ContextCSS:

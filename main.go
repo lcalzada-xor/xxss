@@ -147,7 +147,7 @@ func main() {
 			"      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m\n" +
 			"    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m\n" +
 			"   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m\n" +
-			"           \x1b[38;5;141mv1.4.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
+			"           \x1b[38;5;141mv1.4.1\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
 
 		fmt.Fprint(os.Stderr, banner)
 		h := `
@@ -239,7 +239,7 @@ EXAMPLES:
 		fmt.Fprintln(os.Stderr, "      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m")
 		fmt.Fprintln(os.Stderr, "    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m")
 		fmt.Fprintln(os.Stderr, "   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m")
-		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv1.4.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
+		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv1.4.1\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
 		fmt.Fprintln(os.Stderr, "")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", concurrency)

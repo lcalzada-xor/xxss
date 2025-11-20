@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.4.1] - 2025-11-20
+
+### Fixed
+- **Critical**: Context detection false positives causing wrong payload suggestions
+- **Critical**: `isInAttribute()` incorrectly detecting HTML content as attribute context
+- **High**: `isInJavaScript()` event handler detection false positives
+- **High**: `isInCSS()` inline style detection false positives
+- **High**: `isInURL()` URL attribute detection false positives
+- **High**: Payload priority for attribute context (now prioritizes tag breakout over event handlers)
+
+### Changed
+- Improved all context detection functions to verify probe is actually inside the detected context
+- Updated payload suggestion logic to prioritize more reliable payloads
+
 ## [v1.4.0] - 2025-11-20
 
 ### Added
