@@ -10,39 +10,28 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
 
 ## 🚀 Features
 
-- **⚡️ Optimized Probing:** Checks for 21 special characters in a single request (including `<`, `>`, `"`, `'`, `=`, `/`, space, and more)
-- **🔥 High Concurrency:** Built-in worker pool for blazing fast scanning of massive URL lists
-- **🛡️ Smart Filtering:** `-allow` and `-ignore` flags for precise, noise-free results
-- **🧪 HTML Encoding Detection:** Identifies when characters are HTML-encoded to reduce false positives
-- **🎯 Unique Baseline Probes:** Avoids false positives from common parameter values
-- **🔓 Raw Payload Mode:** Option to send payloads without URL encoding (`--raw` flag)
-- **🤫 Silent Mode:** Perfect for piping into other tools like `dalfox`, `jq`, or `notify`
-- **📦 JSON Output:** Structured, machine-readable output for easy integration
+- **Fast & Efficient**: Optimized for speed with concurrent scanning.
+- **Smart Detection**:
+  - **Context-Aware**: Detects HTML, JavaScript, Attribute, URL, and Comment contexts.
+  - **Security Headers**: Analyzes CSP and other headers to determine exploitability.
+  - **HTML Encoding Detection**: Identifies when special characters are encoded.
+- **Comprehensive Scanning**:
+  - **GET/POST/PUT/PATCH**: Support for various HTTP methods.
+  - **Header Injection**: Scans HTTP headers (User-Agent, Referer, etc.) for XSS.
+- **Flexible Output**:
+  - **URL** (default): Pipe-friendly for tools like `dalfox`.
+  - **Human**: Pretty-printed findings with context and payloads.
+  - **JSON**: Structured output for automation.
+- **Customizable**:
+  - Filter reflected characters (`-allow`, `-ignore`).
+  - Raw payload mode (`--raw`).
+  - Proxy support.
 
-## 📦 Installation
+## Installation
 
-### From Source
-```bash
-git clone https://github.com/lcalzada-xor/xxss
-cd xxss
-go build -o xxss
-sudo mv xxss /usr/local/bin/
-```
-
-### Using Go
 ```bash
 go install github.com/lcalzada-xor/xxss@latest
 ```
-
-## 🛠️ Usage
-
-`xxss` accepts URLs from `stdin`, making it ideal for chaining with tools like `waybackurls`, `gau`, or `katana`.
-
-```bash
-cat urls.txt | xxss [flags]
-```
-
-### Flags
 
 | Flag | Short | Description | Default |
 |------|-------|-------------|---------|

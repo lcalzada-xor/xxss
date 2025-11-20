@@ -184,10 +184,28 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 
 	unfiltered := AnalyzeResponse(body, probeStr)
 
+	// Detect context
+	context := DetectContext(body, probeStr)
+
+	// Analyze security headers
+	securityHeaders := AnalyzeSecurityHeaders(resp)
+
+	// Determine exploitability
+	exploitable := IsExploitable(context, securityHeaders, unfiltered)
+
+	// Get suggested payload
+	suggestedPayload := GetSuggestedPayload(context, unfiltered)
+
 	return models.Result{
-		URL:        targetURL,
-		Parameter:  param,
-		Reflected:  true,
-		Unfiltered: unfiltered,
+		URL:              targetURL,
+		Method:           "GET",
+		Parameter:        param,
+		InjectionType:    models.InjectionQuery,
+		Reflected:        true,
+		Unfiltered:       unfiltered,
+		Context:          context,
+		SecurityHeaders:  securityHeaders,
+		Exploitable:      exploitable,
+		SuggestedPayload: suggestedPayload,
 	}, nil
 }

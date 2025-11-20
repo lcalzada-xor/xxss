@@ -1,9 +1,43 @@
 package models
 
+type InjectionType string
+
+const (
+	InjectionQuery  InjectionType = "query"
+	InjectionBody   InjectionType = "body"
+	InjectionHeader InjectionType = "header"
+)
+
+type ReflectionContext string
+
+const (
+	ContextHTML       ReflectionContext = "html"
+	ContextJavaScript ReflectionContext = "javascript"
+	ContextCSS        ReflectionContext = "css"
+	ContextAttribute  ReflectionContext = "attribute"
+	ContextURL        ReflectionContext = "url"
+	ContextComment    ReflectionContext = "comment"
+	ContextUnknown    ReflectionContext = "unknown"
+)
+
+type SecurityHeaders struct {
+	ContentType         string `json:"content_type,omitempty"`
+	CSP                 string `json:"csp,omitempty"`
+	XContentTypeOptions string `json:"x_content_type_options,omitempty"`
+	XXSSProtection      string `json:"x_xss_protection,omitempty"`
+	HasAntiXSS          bool   `json:"has_anti_xss"`
+}
+
 // Result represents the findings of an XSS scan for a specific URL and parameter.
 type Result struct {
-	URL         string   `json:"url"`
-	Parameter   string   `json:"parameter"`
-	Reflected   bool     `json:"reflected"`
-	Unfiltered  []string `json:"unfiltered"` // Characters that were reflected without encoding
+	URL              string            `json:"url"`
+	Method           string            `json:"method"`
+	Parameter        string            `json:"parameter"`
+	InjectionType    InjectionType     `json:"injection_type"`
+	Reflected        bool              `json:"reflected"`
+	Unfiltered       []string          `json:"unfiltered"`
+	Context          ReflectionContext `json:"context,omitempty"`
+	SecurityHeaders  SecurityHeaders   `json:"security_headers,omitempty"`
+	Exploitable      bool              `json:"exploitable"`
+	SuggestedPayload string            `json:"suggested_payload,omitempty"`
 }
