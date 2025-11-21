@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,7 @@ type Scanner struct {
 	headers       map[string]string
 	useRawPayload bool
 	blindURL      string
+	verbose       bool
 	requestCount  int
 	requestMutex  sync.Mutex
 }
@@ -31,6 +33,7 @@ func NewScanner(client *http.Client, headers map[string]string) *Scanner {
 		headers:       headers,
 		useRawPayload: false,
 		blindURL:      "",
+		verbose:       false,
 		requestCount:  0,
 	}
 }
@@ -38,6 +41,11 @@ func NewScanner(client *http.Client, headers map[string]string) *Scanner {
 // SetBlindURL sets the callback URL for Blind XSS attacks
 func (s *Scanner) SetBlindURL(url string) {
 	s.blindURL = url
+}
+
+// SetVerbose enables or disables verbose output
+func (s *Scanner) SetVerbose(verbose bool) {
+	s.verbose = verbose
 }
 
 // SetRawPayload enables or disables raw payload mode (no URL encoding)
@@ -75,17 +83,18 @@ func (s *Scanner) Scan(targetURL string) ([]models.Result, error) {
 
 	// 2. Single-Shot Probe: For each reflected param, inject all chars.
 	for _, param := range reflectedParams {
-		// Blind XSS Injection
-		if s.blindURL != "" {
-			payloads.InjectBlind(s.client, s.headers, targetURL, param, s.blindURL)
-		}
-
 		result, err := s.probeParameter(targetURL, param)
 		if err != nil {
 			// Log error but continue with other params?
 			// For now, just continue.
 			continue
 		}
+
+		// Contextual Blind XSS Injection (after context detection)
+		if s.blindURL != "" && result.Context != models.ContextUnknown {
+			s.injectContextualBlind(targetURL, param, result.Context)
+		}
+
 		if len(result.Unfiltered) > 0 {
 			results = append(results, result)
 		}
@@ -264,4 +273,44 @@ func (s *Scanner) AnalyzeReflection(targetURL, method, param string, injectionTy
 		Exploitable:      exploitable,
 		SuggestedPayload: suggestedPayload,
 	}, nil
+}
+
+// injectContextualBlind injects context-specific blind XSS payloads
+func (s *Scanner) injectContextualBlind(targetURL, param string, context models.ReflectionContext) {
+	uniqueURL := payloads.GenerateUniqueCallback(s.blindURL, param)
+	contextPayloads := payloads.BlindPayloadsForContext(uniqueURL, context)
+
+	if s.verbose {
+		fmt.Fprintf(os.Stderr, "[BLIND] %s [%s] → %s (%d contextual payloads)\n", param, context, uniqueURL, len(contextPayloads))
+	}
+
+	u, err := url.Parse(targetURL)
+	if err != nil {
+		return
+	}
+
+	qs := u.Query()
+
+	for _, payload := range contextPayloads {
+		qs.Set(param, payload)
+		u.RawQuery = qs.Encode()
+
+		req, err := http.NewRequest("GET", u.String(), nil)
+		if err != nil {
+			continue
+		}
+
+		req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
+		for k, v := range s.headers {
+			req.Header.Set(k, v)
+		}
+
+		// Fire and forget
+		go func(r *http.Request) {
+			resp, err := s.client.Do(r)
+			if err == nil && resp != nil {
+				resp.Body.Close()
+			}
+		}(req)
+	}
 }

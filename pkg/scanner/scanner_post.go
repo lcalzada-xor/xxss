@@ -1,11 +1,13 @@
 package scanner
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -41,15 +43,16 @@ func (s *Scanner) ScanRequest(config *models.RequestConfig) ([]models.Result, er
 	// 3. Scan Body Parameters
 	if config.Method == "POST" || config.Method == "PUT" || config.Method == "PATCH" {
 		for _, param := range reflectedParams {
-			// Blind XSS Injection
-			if s.blindURL != "" {
-				payloads.InjectBlindBody(s.client, s.headers, config, param, s.blindURL, params)
-			}
-
 			result, err := s.probeBodyParameter(config, param, params)
 			if err != nil {
 				continue
 			}
+
+			// Contextual Blind XSS Injection (after context detection)
+			if s.blindURL != "" && result.Context != models.ContextUnknown {
+				s.injectContextualBlindBody(config, param, params, result.Context)
+			}
+
 			if len(result.Unfiltered) > 0 {
 				results = append(results, result)
 			}
@@ -215,7 +218,7 @@ func (s *Scanner) probeBodyParameter(config *models.RequestConfig, param string,
 func (s *Scanner) ScanHeader(targetURL, header string) (models.Result, error) {
 	// Blind XSS Injection
 	if s.blindURL != "" {
-		payloads.InjectBlindHeader(s.client, s.headers, targetURL, header, s.blindURL)
+		payloads.InjectBlindHeader(s.client, s.headers, targetURL, header, s.blindURL, s.verbose)
 	}
 
 	// 1. Check if header is reflected
@@ -283,4 +286,62 @@ func (s *Scanner) ScanHeader(targetURL, header string) (models.Result, error) {
 	}
 	// Analyze reflection using shared method
 	return s.AnalyzeReflection(targetURL, "GET", header, models.InjectionHeader, resp2, probeStr)
+}
+
+// injectContextualBlindBody injects context-specific blind XSS payloads into POST body
+func (s *Scanner) injectContextualBlindBody(config *models.RequestConfig, param string, params map[string]string, reflectionContext models.ReflectionContext) {
+	uniqueURL := payloads.GenerateUniqueCallback(s.blindURL, param)
+	contextPayloads := payloads.BlindPayloadsForContext(uniqueURL, reflectionContext)
+
+	if s.verbose {
+		fmt.Fprintf(os.Stderr, "[BLIND] Body:%s [%s] → %s (%d contextual payloads)\n", param, reflectionContext, uniqueURL, len(contextPayloads))
+	}
+
+	for _, payload := range contextPayloads {
+		// Create a copy of params with the payload
+		injectedParams := make(map[string]string)
+		for k, v := range params {
+			injectedParams[k] = v
+		}
+		injectedParams[param] = payload
+
+		// Build request body based on content type
+		var body string
+		var contentTypeHeader string
+
+		if config.ContentType == "application/json" {
+			jsonData, err := json.Marshal(injectedParams)
+			if err != nil {
+				continue
+			}
+			body = string(jsonData)
+			contentTypeHeader = "application/json"
+		} else {
+			formData := url.Values{}
+			for k, v := range injectedParams {
+				formData.Set(k, v)
+			}
+			body = formData.Encode()
+			contentTypeHeader = "application/x-www-form-urlencoded"
+		}
+
+		// Fire and forget
+		go func(bodyStr string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			req, err := http.NewRequestWithContext(ctx, string(config.Method), config.URL, strings.NewReader(bodyStr))
+			if err != nil {
+				return
+			}
+			req.Header.Set("Content-Type", contentTypeHeader)
+			req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
+			for k, v := range s.headers {
+				req.Header.Set(k, v)
+			}
+			resp, err := s.client.Do(req)
+			if err == nil && resp != nil {
+				resp.Body.Close()
+			}
+		}(body)
+	}
 }

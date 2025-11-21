@@ -23,8 +23,13 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
   - **13 Context Types**: HTML, JavaScript (Single Quote, Double Quote, Raw), Template Literals, CSS, Attribute, URL, Data URIs, SVG, Meta Refresh, Comment, Tag Name, RCDATA, **AngularJS**
   - **Granular JavaScript Detection**: Distinguishes between `'input'`, `"input"`, and raw `input` contexts
   - **AngularJS Sandbox Escape**: Detects and exploits AngularJS template injection
-  - **WAF Detection**: Identifies 8 common WAFs (Cloudflare, AWS, Akamai, Imperva, ModSecurity, F5, Sucuri, Barracuda)
-  - **Blind XSS**: Full support for GET, POST body, and header injections
+  - **WAF Detection**: Identifies 8 common WAFs (Cloudflare, AWS, Imperva, ModSecurity, F5, Sucuri, Barracuda)
+  - **Header Scanning**: Inject into `User-Agent`, `Referer`, `X-Forwarded-For`, etc.
+  - **Blind XSS**: 
+    - **Unique Identifiers**: Subdomain-based tracking (`param123.oast.fun`)
+    - **12+ Payloads**: Expanded from 4 generic to 12+ diverse vectors
+    - **Contextual Payloads**: Context-aware blind XSS (HTML, JS, Attribute, Angular, etc.)
+    - **Verbose Output**: See exactly what's being injected
   - **Security Headers**: Analyzes CSP and other headers to determine exploitability
   - **HTML Encoding Detection**: Identifies when special characters are encoded
 - **Comprehensive Scanning**:
@@ -95,6 +100,26 @@ Send special characters without URL encoding (useful for some servers).
 ```bash
 cat urls.txt | xxss --raw
 ```
+
+### 5. Blind XSS with interactsh
+Use `interactsh-client` for out-of-band detection with unique identifiers.
+```bash
+# Terminal 1: Start interactsh
+interactsh-client
+# Output: c59h6dg0vtc0000gg6c0g.oast.fun
+
+# Terminal 2: Scan with xxss (verbose to see injections)
+cat urls.txt | xxss -b https://c59h6dg0vtc0000gg6c0g.oast.fun -v
+
+# Output:
+# [BLIND] search [html] → https://098f6bcd.c59h6dg0vtc0000gg6c0g.oast.fun (6 contextual payloads)
+# [BLIND] user [javascript] → https://5f4dcc3b.c59h6dg0vtc0000gg6c0g.oast.fun (3 contextual payloads)
+```
+
+**Features:**
+- **Unique Identifiers**: Each parameter gets a unique subdomain (`param123.oast.fun`)
+- **Contextual Payloads**: Automatically selects payloads based on detected context
+- **Verbose Output**: See exactly what's being injected with `-v`
 
 ### 5. Authenticated Scan & Proxy
 Scan with a session cookie and route traffic through Burp Suite.

@@ -96,7 +96,7 @@ func main() {
 			"      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m\n" +
 			"    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m\n" +
 			"   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m\n" +
-			"           \x1b[38;5;141mv1.6.1\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
+			"           \x1b[38;5;141mv1.7.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
 
 		fmt.Fprint(os.Stderr, banner)
 		h := `
@@ -166,6 +166,7 @@ EXAMPLES:
 	client, _ := network.NewClient(timeout, proxy, concurrency, 0)
 	sc := scanner.NewScanner(client, headerMap)
 	sc.SetRawPayload(rawPayload)
+	sc.SetVerbose(verbose)
 	if blindURL != "" {
 		// Validate blind URL
 		if _, err := url.Parse(blindURL); err != nil {
