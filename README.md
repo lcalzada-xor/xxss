@@ -42,7 +42,7 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
 ## Installation
 
 ```bash
-go install github.com/lcalzada-xor/xxss@latest
+go install github.com/lcalzada-xor/xxss/cmd/xxss@latest
 ```
 
 | Flag | Short | Description | Default |
