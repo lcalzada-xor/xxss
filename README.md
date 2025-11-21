@@ -20,7 +20,8 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
   - ~20,000 requests/second throughput
   - Smart single-shot probing strategy
 - **Advanced Detection**:
-  - **10 Context Types**: HTML, JavaScript, Template Literals, CSS, Attribute, URL, Data URIs, SVG, Meta Refresh, Comment
+  - **12 Context Types**: HTML, JavaScript (Single Quote, Double Quote, Raw), Template Literals, CSS, Attribute, URL, Data URIs, SVG, Meta Refresh, Comment, Tag Name, RCDATA
+  - **Granular JavaScript Detection**: Distinguishes between `'input'`, `"input"`, and raw `input` contexts
   - **Blind XSS**: Full support for GET, POST body, and header injections
   - **Security Headers**: Analyzes CSP and other headers to determine exploitability
   - **HTML Encoding Detection**: Identifies when special characters are encoded
@@ -48,14 +49,20 @@ go install github.com/lcalzada-xor/xxss@latest
 |------|-------|-------------|---------|
 | `--concurrency` | `-c` | Number of concurrent workers | `40` |
 | `--timeout` | `-t` | HTTP request timeout | `10s` |
-| `--verbose` | `-v` | Show verbose error messages | `false` |
+| `--verbose` | `-v` | Show verbose output (e.g., headers being scanned) | `false` |
 | `--silent` | `-s` | Silent mode (suppress banner & errors) | `false` |
 | `--allow` | `-a` | Comma-separated list of allowed chars (e.g., `<,>`) | `""` |
-| `--ignore` | `-i` | Comma-separated list of ignored chars (e.g., `',"`)| `""` |
+| `--ignore` | `-i` | Comma-separated list of ignored chars (e.g., `',"`)`| `""` |
 | `--proxy` | `-x` | Proxy URL (e.g., `http://127.0.0.1:8080`) | `""` |
 | `--header` | `-H` | Custom header (e.g., `Cookie: session=123`) | `""` |
 | `--blind` | `-b` | Blind XSS callback URL (e.g., `https://xss.hunter`) | `""` |
 | `--raw` | `-r` | Send payloads without URL encoding | `false` |
+| `--method` | `-X` | HTTP method (GET, POST, PUT, PATCH) | `GET` |
+| `--data` | `-d` | Request body for POST/PUT/PATCH | `""` |
+| `--content-type` | `-ct` | Content-Type for request body | `application/x-www-form-urlencoded` |
+| `--scan-headers` | `-sh` | Scan HTTP headers for XSS | `false` |
+| `--headers-list` | `-hl` | Headers to scan (comma-separated) | `User-Agent,Referer,X-Forwarded-For,X-Real-IP,X-Forwarded-Host,X-Original-URL,Accept-Language` |
+| `--output` | `-o` | Output format: url, human, json | `url` |
 
 ## 💡 Examples
 
@@ -91,6 +98,28 @@ cat urls.txt | xxss --raw
 Scan with a session cookie and route traffic through Burp Suite.
 ```bash
 echo "http://example.com/profile?name=test" | xxss -H "Cookie: session=secret" -x http://127.0.0.1:8080
+```
+
+### 6. Header Injection Scanning
+Scan HTTP headers for XSS vulnerabilities with verbose output.
+```bash
+echo "http://testphp.vulnweb.com" | xxss -sh -v
+```
+
+### 7. POST Request Scanning
+Scan POST body parameters (form-urlencoded or JSON).
+```bash
+# Form data
+echo "http://example.com/login" | xxss -X POST -d "username=test&password=test"
+
+# JSON data
+echo "http://example.com/api/user" | xxss -X POST -d '{"name":"test","email":"test@test.com"}' -ct application/json
+```
+
+### 8. Human-Readable Output
+Get detailed findings with context and suggested payloads.
+```bash
+echo "http://testphp.vulnweb.com/listproducts.php?cat=1" | xxss -o human
 ```
 
 ## 📝 Output Format

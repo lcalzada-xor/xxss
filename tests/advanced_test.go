@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/models"
-	"github.com/lcalzada-xor/xxss/network"
-	"github.com/lcalzada-xor/xxss/scanner"
+	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/pkg/network"
+	"github.com/lcalzada-xor/xxss/pkg/scanner"
 )
 
 // TestBlindXSS verifies that blind XSS payloads are injected and trigger callbacks
@@ -115,9 +115,9 @@ func TestBlindXSSHeader(t *testing.T) {
 	sc.SetBlindURL(callbackServer.URL)
 
 	// Scan headers
-	_, err := sc.ScanHeaders(targetServer.URL, []string{"User-Agent"})
+	_, err := sc.ScanHeader(targetServer.URL, "User-Agent")
 	if err != nil {
-		t.Fatalf("ScanHeaders failed: %v", err)
+		t.Fatalf("ScanHeader failed: %v", err)
 	}
 
 	time.Sleep(500 * time.Millisecond)
@@ -194,7 +194,7 @@ func TestPolyglotContexts(t *testing.T) {
 		{
 			name:            "JavaScript Context",
 			response:        `<html><body><script>var x = '%s';</script></body></html>`,
-			expectedContext: models.ContextJavaScript,
+			expectedContext: models.ContextJSSingleQuote,
 			expectedPayload: "';alert(1);//",
 		},
 	}

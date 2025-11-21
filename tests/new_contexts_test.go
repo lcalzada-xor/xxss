@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/models"
-	"github.com/lcalzada-xor/xxss/network"
-	"github.com/lcalzada-xor/xxss/scanner"
+	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/pkg/network"
+	"github.com/lcalzada-xor/xxss/pkg/scanner"
 )
 
 // TestContextDetection_TemplateLiteral tests detection of template literal context

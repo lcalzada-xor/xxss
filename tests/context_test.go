@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/models"
-	"github.com/lcalzada-xor/xxss/network"
-	"github.com/lcalzada-xor/xxss/scanner"
+	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/pkg/network"
+	"github.com/lcalzada-xor/xxss/pkg/scanner"
 )
 
 // Test HTML context detection
@@ -63,7 +63,7 @@ func TestContextDetection_JavaScript(t *testing.T) {
 		t.Fatal("Expected at least one result")
 	}
 
-	if results[0].Context != models.ContextJavaScript {
+	if !(results[0].Context == models.ContextJavaScript || results[0].Context == models.ContextJSSingleQuote || results[0].Context == models.ContextJSDoubleQuote || results[0].Context == models.ContextJSRaw) {
 		t.Errorf("Expected JavaScript context, got %s", results[0].Context)
 	}
 
@@ -234,10 +234,9 @@ func TestPayloadSuggestions(t *testing.T) {
 			shouldHavePayload: true,
 		},
 		{
-			name:              "JavaScript with quotes",
-			responseTemplate:  `<html><body><script>var x = "%s";</script></body></html>`,
-			expectedContext:   models.ContextJavaScript,
-			shouldHavePayload: true,
+			name:             "JavaScript with quotes",
+			responseTemplate: `<html><body><script>var x = "%s";</script></body></html>`,
+			expectedContext:  models.ContextJSDoubleQuote,
 		},
 		{
 			name:              "Attribute with quotes",

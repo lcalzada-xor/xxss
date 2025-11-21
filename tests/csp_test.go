@@ -3,13 +3,13 @@ package tests
 import (
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/scanner"
+	"github.com/lcalzada-xor/xxss/pkg/scanner/security"
 )
 
 // TestCSPBypass_UnsafeInline tests detection of unsafe-inline
 func TestCSPBypass_UnsafeInline(t *testing.T) {
 	csp := "default-src 'self'; script-src 'self' 'unsafe-inline'"
-	if !scanner.AnalyzeCSPBypass(csp) {
+	if !security.AnalyzeCSPBypass(csp) {
 		t.Error("Expected CSP with unsafe-inline to be bypassable")
 	}
 }
@@ -17,7 +17,7 @@ func TestCSPBypass_UnsafeInline(t *testing.T) {
 // TestCSPBypass_UnsafeEval tests detection of unsafe-eval
 func TestCSPBypass_UnsafeEval(t *testing.T) {
 	csp := "default-src 'self'; script-src 'self' 'unsafe-eval'"
-	if !scanner.AnalyzeCSPBypass(csp) {
+	if !security.AnalyzeCSPBypass(csp) {
 		t.Error("Expected CSP with unsafe-eval to be bypassable")
 	}
 }
@@ -25,7 +25,7 @@ func TestCSPBypass_UnsafeEval(t *testing.T) {
 // TestCSPBypass_Wildcard tests detection of wildcard sources
 func TestCSPBypass_Wildcard(t *testing.T) {
 	csp := "default-src 'self'; script-src *"
-	if !scanner.AnalyzeCSPBypass(csp) {
+	if !security.AnalyzeCSPBypass(csp) {
 		t.Error("Expected CSP with wildcard to be bypassable")
 	}
 }
@@ -33,7 +33,7 @@ func TestCSPBypass_Wildcard(t *testing.T) {
 // TestCSPBypass_JSONP tests detection of JSONP endpoints
 func TestCSPBypass_JSONP(t *testing.T) {
 	csp := "default-src 'self'; script-src 'self' https://ajax.googleapis.com"
-	if !scanner.AnalyzeCSPBypass(csp) {
+	if !security.AnalyzeCSPBypass(csp) {
 		t.Error("Expected CSP with googleapis.com to be bypassable (JSONP)")
 	}
 }
@@ -47,7 +47,7 @@ func TestCSPBypass_CDN(t *testing.T) {
 	}
 
 	for _, csp := range cdns {
-		if !scanner.AnalyzeCSPBypass(csp) {
+		if !security.AnalyzeCSPBypass(csp) {
 			t.Errorf("Expected CSP with CDN to be bypassable: %s", csp)
 		}
 	}
@@ -56,7 +56,7 @@ func TestCSPBypass_CDN(t *testing.T) {
 // TestCSPBypass_DataURI tests detection of data: URIs
 func TestCSPBypass_DataURI(t *testing.T) {
 	csp := "default-src 'self'; script-src 'self' data:"
-	if !scanner.AnalyzeCSPBypass(csp) {
+	if !security.AnalyzeCSPBypass(csp) {
 		t.Error("Expected CSP with data: to be bypassable")
 	}
 }
@@ -64,7 +64,7 @@ func TestCSPBypass_DataURI(t *testing.T) {
 // TestCSPBypass_MissingBaseURI tests detection of missing base-uri
 func TestCSPBypass_MissingBaseURI(t *testing.T) {
 	csp := "default-src 'self'; script-src 'self'"
-	if !scanner.AnalyzeCSPBypass(csp) {
+	if !security.AnalyzeCSPBypass(csp) {
 		t.Error("Expected CSP without base-uri to be bypassable")
 	}
 }
@@ -72,7 +72,7 @@ func TestCSPBypass_MissingBaseURI(t *testing.T) {
 // TestCSPBypass_Strict tests that strict CSP is not bypassable
 func TestCSPBypass_Strict(t *testing.T) {
 	csp := "default-src 'self'; script-src 'self'; base-uri 'self'; object-src 'none'"
-	if scanner.AnalyzeCSPBypass(csp) {
+	if security.AnalyzeCSPBypass(csp) {
 		t.Error("Expected strict CSP to NOT be bypassable")
 	}
 }
