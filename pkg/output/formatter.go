@@ -30,6 +30,9 @@ func Format(res models.Result, format string) string {
 		sb.WriteString(fmt.Sprintf("    %sInjection:%s  %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.InjectionType, cReset))
 		sb.WriteString(fmt.Sprintf("    %sContext:%s    %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.Context, cReset))
 		sb.WriteString(fmt.Sprintf("    %sExploitable:%s %s%v%s\n", cDarkPurple, cReset, cLightPurple, res.Exploitable, cReset))
+		if res.SecurityHeaders.WAF != "" {
+			sb.WriteString(fmt.Sprintf("    %sWAF:%s        %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.SecurityHeaders.WAF, cReset))
+		}
 		sb.WriteString(fmt.Sprintf("    %sUnfiltered:%s %s%v%s\n", cDarkPurple, cReset, cLightPurple, res.Unfiltered, cReset))
 		if res.SuggestedPayload != "" {
 			sb.WriteString(fmt.Sprintf("    %sPayload:%s    %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.SuggestedPayload, cReset))

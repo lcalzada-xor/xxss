@@ -37,6 +37,7 @@ type SecurityHeaders struct {
 	XContentTypeOptions string `json:"x_content_type_options,omitempty"`
 	XXSSProtection      string `json:"x_xss_protection,omitempty"`
 	HasAntiXSS          bool   `json:"has_anti_xss"`
+	WAF                 string `json:"waf,omitempty"` // Detected Web Application Firewall
 }
 
 // Result represents the findings of an XSS scan for a specific URL and parameter.

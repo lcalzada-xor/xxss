@@ -237,6 +237,12 @@ func (s *Scanner) AnalyzeReflection(targetURL, method, param string, injectionTy
 	// Analyze security headers
 	securityHeaders := security.AnalyzeSecurityHeaders(resp)
 
+	// Detect WAF
+	waf := security.DetectWAF(resp.Header)
+	if waf.Detected {
+		securityHeaders.WAF = waf.Name
+	}
+
 	// Determine exploitability
 	exploitable := security.IsExploitable(context, securityHeaders, unfiltered)
 

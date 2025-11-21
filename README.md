@@ -23,6 +23,7 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
   - **13 Context Types**: HTML, JavaScript (Single Quote, Double Quote, Raw), Template Literals, CSS, Attribute, URL, Data URIs, SVG, Meta Refresh, Comment, Tag Name, RCDATA, **AngularJS**
   - **Granular JavaScript Detection**: Distinguishes between `'input'`, `"input"`, and raw `input` contexts
   - **AngularJS Sandbox Escape**: Detects and exploits AngularJS template injection
+  - **WAF Detection**: Identifies 8 common WAFs (Cloudflare, AWS, Akamai, Imperva, ModSecurity, F5, Sucuri, Barracuda)
   - **Blind XSS**: Full support for GET, POST body, and header injections
   - **Security Headers**: Analyzes CSP and other headers to determine exploitability
   - **HTML Encoding Detection**: Identifies when special characters are encoded
