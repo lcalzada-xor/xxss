@@ -20,8 +20,9 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
   - ~20,000 requests/second throughput
   - Smart single-shot probing strategy
 - **Advanced Detection**:
-  - **12 Context Types**: HTML, JavaScript (Single Quote, Double Quote, Raw), Template Literals, CSS, Attribute, URL, Data URIs, SVG, Meta Refresh, Comment, Tag Name, RCDATA
+  - **13 Context Types**: HTML, JavaScript (Single Quote, Double Quote, Raw), Template Literals, CSS, Attribute, URL, Data URIs, SVG, Meta Refresh, Comment, Tag Name, RCDATA, **AngularJS**
   - **Granular JavaScript Detection**: Distinguishes between `'input'`, `"input"`, and raw `input` contexts
+  - **AngularJS Sandbox Escape**: Detects and exploits AngularJS template injection
   - **Blind XSS**: Full support for GET, POST body, and header injections
   - **Security Headers**: Analyzes CSP and other headers to determine exploitability
   - **HTML Encoding Detection**: Identifies when special characters are encoded

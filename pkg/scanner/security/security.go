@@ -163,6 +163,19 @@ func IsExploitable(context models.ReflectionContext, headers models.SecurityHead
 	case models.ContextURL:
 		// URL injection is possible with javascript: protocol
 		return true
+
+	case models.ContextAngular:
+		// AngularJS template injection
+		// Need parentheses and dot for constructor escape
+		if contains(unfiltered, "(") && contains(unfiltered, ")") && contains(unfiltered, ".") {
+			return true
+		}
+		// Or brackets for array-based escape
+		if contains(unfiltered, "[") && contains(unfiltered, "]") {
+			return true
+		}
+		// Even simple expressions can be dangerous in Angular
+		return true
 	}
 
 	return true

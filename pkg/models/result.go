@@ -24,6 +24,7 @@ const (
 	ContextSVG             ReflectionContext = "svg"
 	ContextMetaRefresh     ReflectionContext = "meta_refresh"
 	ContextComment         ReflectionContext = "comment"
+	ContextAngular         ReflectionContext = "angular" // AngularJS template context
 	ContextTagName         ReflectionContext = "tag_name"
 	ContextRCDATA          ReflectionContext = "rcdata"
 	ContextUnknown         ReflectionContext = "unknown"
