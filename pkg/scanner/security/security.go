@@ -126,7 +126,26 @@ func IsExploitable(context models.ReflectionContext, headers models.SecurityHead
 	// Check if we have necessary characters for the context
 	switch context {
 	case models.ContextHTML:
-		return contains(unfiltered, "<") && contains(unfiltered, ">")
+		// Primary: need < and > for tag injection
+		if contains(unfiltered, "<") && contains(unfiltered, ">") {
+			return true
+		}
+
+		// Alternative: javascript: protocol (for href, src attributes in DOM XSS)
+		// Requires : / ( ) for javascript:alert(1)
+		if contains(unfiltered, ":") && contains(unfiltered, "/") &&
+			contains(unfiltered, "(") && contains(unfiltered, ")") {
+			return true
+		}
+
+		// Alternative: event handlers if can break out of attribute
+		// Requires quotes and = for onclick=alert(1)
+		if (contains(unfiltered, "\"") || contains(unfiltered, "'")) &&
+			contains(unfiltered, "=") && contains(unfiltered, "(") && contains(unfiltered, ")") {
+			return true
+		}
+
+		return false
 
 	case models.ContextJavaScript:
 		// Need quotes or semicolon to break out
