@@ -1,5 +1,9 @@
 # Changelog
 
+## [v2.0.1] - 2025-11-24
+### Fixed
+- **Hotfix**: Corrected version display in banner and usage output.
+
 ## [v2.0.0] - 2025-11-24
 ### Added
 - **New AST-Based DOM XSS Engine**: Replaced regex-based analysis with a full JavaScript parser (`goja/parser`) for superior accuracy.
