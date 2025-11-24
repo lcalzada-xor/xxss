@@ -40,6 +40,17 @@ func Format(res models.Result, format string) string {
 		if res.SecurityHeaders.CSP != "" {
 			sb.WriteString(fmt.Sprintf("    %sCSP:%s        %s%s%s\n", cDarkPurple, cReset, cLightPurple, res.SecurityHeaders.CSP, cReset))
 		}
+		if len(res.DOMFindings) > 0 {
+			sb.WriteString(fmt.Sprintf("    %sDOM Findings:%s\n", cDarkPurple, cReset))
+			for _, finding := range res.DOMFindings {
+				sb.WriteString(fmt.Sprintf("      %s- [%s] %s%s\n", cLightPurple, finding.Confidence, finding.Description, cReset))
+				sb.WriteString(fmt.Sprintf("        %sSource: %s%s\n", cLightPurple, finding.Source, cReset))
+				sb.WriteString(fmt.Sprintf("        %sSink:   %s%s\n", cLightPurple, finding.Sink, cReset))
+				if finding.Line != "" {
+					sb.WriteString(fmt.Sprintf("        %sLine:   %s%s\n", cLightPurple, strings.TrimSpace(finding.Line), cReset))
+				}
+			}
+		}
 		return sb.String()
 
 	case "json":

@@ -1,5 +1,25 @@
 # Changelog
 
+## [v2.0.0] - 2025-11-24
+### Added
+- **New AST-Based DOM XSS Engine**: Replaced regex-based analysis with a full JavaScript parser (`goja/parser`) for superior accuracy.
+- **Scope-Aware Taint Tracking**: The scanner now understands variable scope and data flow, reducing false positives and detecting complex transitive vulnerabilities.
+- **Modern Vector Support**: Added detection for:
+    - Navigation API (`navigation.currentEntry`, `navigation.navigate`).
+    - jQuery Sinks (`.html()`, `.append()`, etc.).
+    - `insertAdjacentHTML`, `setImmediate`.
+- **Prototype Pollution Detection**: Now identifies assignments to `__proto__`, `prototype`, and `constructor`.
+- **Sanitization Detection**: Automatically ignores data flows that pass through `DOMPurify.sanitize`.
+- **Line Number Mapping**: Reports the exact line number of the sink in the source code.
+
+### Changed
+- **Major**: DOM XSS scanning is now enabled by default. Use `--no-dom` to disable.
+- **Improved**: `isSource` logic now handles nested properties (e.g., `window.opener.location`).
+
+## [v1.7.0] - Previous
+- Added Blind XSS support.
+- Added Deep DOM scanning.
+
 All notable changes to this project will be documented in this file.
 
 ## [v1.4.3] - 2025-11-20

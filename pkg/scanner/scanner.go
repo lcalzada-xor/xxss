@@ -23,6 +23,9 @@ type Scanner struct {
 	useRawPayload bool
 	blindURL      string
 	verbose       bool
+	domScanner    *DOMScanner
+	scanDOM       bool
+	scanDeepDOM   bool
 	requestCount  int
 	requestMutex  sync.Mutex
 }
@@ -35,7 +38,18 @@ func NewScanner(client *http.Client, headers map[string]string) *Scanner {
 		blindURL:      "",
 		verbose:       false,
 		requestCount:  0,
+		domScanner:    NewDOMScanner(),
 	}
+}
+
+// SetScanDOM enables or disables DOM XSS scanning
+func (s *Scanner) SetScanDOM(enable bool) {
+	s.scanDOM = enable
+}
+
+// SetScanDeepDOM enables or disables deep DOM XSS scanning (fetching external JS)
+func (s *Scanner) SetScanDeepDOM(enable bool) {
+	s.scanDeepDOM = enable
 }
 
 // SetBlindURL sets the callback URL for Blind XSS attacks
@@ -70,6 +84,51 @@ func (s *Scanner) ResetRequestCount() {
 // Scan performs the XSS scan on the given URL.
 func (s *Scanner) Scan(targetURL string) ([]models.Result, error) {
 	results := []models.Result{}
+
+	// DOM XSS Scanning
+	if s.scanDOM {
+		// Fetch the page content
+		req, err := http.NewRequest("GET", targetURL, nil)
+		if err != nil {
+			return results, err
+		}
+		req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
+		for k, v := range s.headers {
+			req.Header.Set(k, v)
+		}
+
+		resp, err := s.client.Do(req)
+		s.requestMutex.Lock()
+		s.requestCount++
+		s.requestMutex.Unlock()
+		if err != nil {
+			return results, err
+		}
+		defer resp.Body.Close()
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return results, err
+		}
+		body := string(bodyBytes)
+
+		var findings []models.DOMFinding
+		if s.scanDeepDOM {
+			findings = s.domScanner.ScanDeepDOM(targetURL, body, s.client)
+		} else {
+			findings = s.domScanner.ScanDOM(body)
+		}
+
+		if len(findings) > 0 {
+			results = append(results, models.Result{
+				URL:         targetURL,
+				Method:      "GET",
+				Parameter:   "DOM",
+				Exploitable: true, // Potential DOM XSS
+				DOMFindings: findings,
+			})
+		}
+	}
 
 	// 1. Baseline Check: See which parameters are reflected at all.
 	reflectedParams, err := s.checkReflection(targetURL)

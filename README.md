@@ -13,13 +13,19 @@
 
 Unlike traditional scanners that send dozens of requests per parameter, `xxss` uses a smart **single-shot probing strategy**, reducing traffic by over **90%** (approx. 1 request per reflected parameter). It prioritizes **recall over precision** - better to report a potential vulnerability than miss one.
 
-## 🚀 Features
+## Features
 
-- **Fast & Efficient**: 
-  - Optimized connection pooling that scales with concurrency
-  - ~20,000 requests/second throughput
-  - Smart single-shot probing strategy
-- **Advanced Detection**:
+- **Fast & Efficient**: Optimized for speed with concurrency control.
+- **Smart Detection**: 
+    - **Reflected XSS**: Context-aware analysis (HTML, JS, Attribute) to reduce false positives.
+    - **DOM XSS (v2.0 Engine)**: 
+        - **AST-Based Analysis**: Uses Abstract Syntax Tree to understand code structure, not just regex.
+        - **Scope-Aware Taint Tracking**: Tracks data flow across variables and functions.
+        - **Modern Vectors**: Detects Navigation API, jQuery sinks, and Prototype Pollution.
+        - **Sanitization Aware**: Recognizes `DOMPurify` and other sanitizers to prevent false alarms.
+- **Deep Scanning**: Can fetch and analyze external JavaScript files (`--deep-dom`).
+- **Blind XSS**: Integrated support for Blind XSS callbacks.
+- **Customizable**: extensive flags for headers, methods, and output formats.
   - **13 Context Types**: HTML, JavaScript (Single Quote, Double Quote, Raw), Template Literals, CSS, Attribute, URL, Data URIs, SVG, Meta Refresh, Comment, Tag Name, RCDATA, **AngularJS**
   - **Granular JavaScript Detection**: Distinguishes between `'input'`, `"input"`, and raw `input` contexts
   - **AngularJS Sandbox Escape**: Detects and exploits AngularJS template injection
@@ -121,19 +127,19 @@ cat urls.txt | xxss -b https://c59h6dg0vtc0000gg6c0g.oast.fun -v
 - **Contextual Payloads**: Automatically selects payloads based on detected context
 - **Verbose Output**: See exactly what's being injected with `-v`
 
-### 5. Authenticated Scan & Proxy
+### 6. Authenticated Scan & Proxy
 Scan with a session cookie and route traffic through Burp Suite.
 ```bash
 echo "http://example.com/profile?name=test" | xxss -H "Cookie: session=secret" -x http://127.0.0.1:8080
 ```
 
-### 6. Header Injection Scanning
+### 7. Header Injection Scanning
 Scan HTTP headers for XSS vulnerabilities with verbose output.
 ```bash
 echo "http://testphp.vulnweb.com" | xxss -sh -v
 ```
 
-### 7. POST Request Scanning
+### 8. POST Request Scanning
 Scan POST body parameters (form-urlencoded or JSON).
 ```bash
 # Form data
@@ -143,7 +149,7 @@ echo "http://example.com/login" | xxss -X POST -d "username=test&password=test"
 echo "http://example.com/api/user" | xxss -X POST -d '{"name":"test","email":"test@test.com"}' -ct application/json
 ```
 
-### 8. Human-Readable Output
+### 9. Human-Readable Output
 Get detailed findings with context and suggested payloads.
 ```bash
 echo "http://testphp.vulnweb.com/listproducts.php?cat=1" | xxss -o human

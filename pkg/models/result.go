@@ -52,4 +52,15 @@ type Result struct {
 	SecurityHeaders  SecurityHeaders   `json:"security_headers,omitempty"`
 	Exploitable      bool              `json:"exploitable"`
 	SuggestedPayload string            `json:"suggested_payload,omitempty"`
+	DOMFindings      []DOMFinding      `json:"dom_findings,omitempty"`
+}
+
+// DOMFinding represents a potential DOM XSS vulnerability found via static analysis.
+type DOMFinding struct {
+	Source      string `json:"source"`
+	Sink        string `json:"sink"`
+	Line        string `json:"line"`
+	LineNumber  int    `json:"line_number"`
+	Confidence  string `json:"confidence"` // "HIGH", "MEDIUM", "LOW"
+	Description string `json:"description"`
 }

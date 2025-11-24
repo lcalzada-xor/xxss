@@ -86,6 +86,12 @@ func main() {
 	flag.StringVar(&blindURL, "b", "", "Blind XSS callback URL (e.g. https://xss.hunter)")
 	flag.StringVar(&blindURL, "blind", "", "Blind XSS callback URL (e.g. https://xss.hunter)")
 
+	var noDOM bool
+	flag.BoolVar(&noDOM, "no-dom", false, "Disable DOM XSS scanning (static analysis)")
+
+	var scanDeepDOM bool
+	flag.BoolVar(&scanDeepDOM, "deep-dom", false, "Enable Deep DOM XSS scanning (fetch external JS)")
+
 	// Custom Usage function
 	flag.Usage = func() {
 		banner := "\n" +
@@ -125,7 +131,9 @@ OUTPUT:
   -o,  --output string       Output format: url, human, json (default "url")
   -v,  --verbose             Verbose output (show progress and details)
   -s,  --silent              Silent mode (suppress banner and errors)
-  -b,  --blind string        Blind XSS callback URL
+  	-b,  --blind string        Blind XSS callback URL
+	--no-dom                   Disable DOM XSS scanning (static analysis)
+	--deep-dom                 Enable Deep DOM XSS scanning (fetch external JS)
 
 EXAMPLES:
   echo "http://example.com/?p=val" | xxss
@@ -167,6 +175,9 @@ EXAMPLES:
 	sc := scanner.NewScanner(client, headerMap)
 	sc.SetRawPayload(rawPayload)
 	sc.SetVerbose(verbose)
+	sc.SetScanDOM(!noDOM)
+	sc.SetScanDeepDOM(scanDeepDOM)
+
 	if blindURL != "" {
 		// Validate blind URL
 		if _, err := url.Parse(blindURL); err != nil {
