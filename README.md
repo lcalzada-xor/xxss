@@ -52,10 +52,31 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
   - Raw payload mode (`--raw`)
   - Proxy support
 
+## 🛡️ Detected Vulnerabilities
+
+**xxss** goes beyond simple reflection checks. It understands the *context* of the injection to prevent false positives and detect complex DOM issues.
+
+### Reflected XSS
+- **HTML Context**: Injections into HTML tags, comments, or RCDATA (e.g., `<textarea>`).
+- **Attribute Context**: Injections into event handlers (`onload`, `onerror`) or critical attributes (`href`, `src`).
+- **JavaScript Context**: Injections into script blocks, supporting single quotes, double quotes, template literals, and raw code.
+
+### DOM-based XSS (v2.0 Engine)
+- **Source -> Sink Flows**: Tracks tainted data from sources (e.g., `location.search`) to dangerous sinks (e.g., `innerHTML`).
+- **Protocol Injection**: Detects `javascript:` pseudo-protocol usage in `href`/`src` attributes.
+- **DOM Clobbering**: Identifies attempts to shadow global variables via HTML attributes.
+- **Prototype Pollution**: Detects assignments to `__proto__`, `prototype`, or `constructor`.
+- **Framework Specifics**: Checks for React's `dangerouslySetInnerHTML` and Angular's `v-html` / `ng-bind-html`.
+- **Web Workers**: Detects dangerous `importScripts` calls.
+
+### Blind XSS
+- **Out-of-Band Detection**: Automatically injects unique payloads to detect vulnerabilities that trigger on backend systems or admin panels.
+
+
 ## Installation
 
 ```bash
-go install github.com/lcalzada-xor/xxss/cmd/xxss@latest
+go install github.com/lcalzada-xor/xxss/v2/cmd/xxss@latest
 ```
 
 | Flag | Short | Description | Default |

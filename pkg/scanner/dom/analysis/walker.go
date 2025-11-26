@@ -1,0 +1,205 @@
+package analysis
+
+import (
+	"github.com/dop251/goja/ast"
+)
+
+// Walk traverses the AST and analyzes nodes.
+func (ctx *AnalysisContext) Walk(node ast.Node) {
+	if node == nil {
+		return
+	}
+	ctx.Logger.VV("DOM: Visiting node type: %T", node)
+
+	// Recursive walker helper
+	var recursiveWalk func(n ast.Node)
+	recursiveWalk = func(n ast.Node) {
+		ctx.Walk(n)
+	}
+
+	switch n := node.(type) {
+	case *ast.FunctionLiteral:
+		ctx.PushScope()
+		recursiveWalk(n.Body)
+		ctx.PopScope()
+		return
+
+	case *ast.FunctionDeclaration:
+		funcName := string(n.Function.Name.Name)
+		ctx.PushScope()
+
+		// Interprocedural taint
+		if taintedArgs, ok := ctx.TaintedCalls[funcName]; ok {
+			for argIdx, taintSrc := range taintedArgs {
+				if argIdx < len(n.Function.ParameterList.List) {
+					param := n.Function.ParameterList.List[argIdx]
+					if paramIdent, ok := param.Target.(*ast.Identifier); ok {
+						ctx.CurrentScope()[string(paramIdent.Name)] = taintSrc
+						ctx.Logger.VV("DOM: Parameter '%s' of function '%s' tainted from '%s'",
+							string(paramIdent.Name), funcName, taintSrc)
+					}
+				}
+			}
+		}
+
+		recursiveWalk(n.Function.Body)
+		ctx.PopScope()
+		return
+
+	case *ast.Binding:
+		ctx.HandleBinding(n)
+		if n.Initializer != nil {
+			recursiveWalk(n.Initializer)
+		}
+
+	case *ast.AssignExpression:
+		ctx.HandleAssignExpression(n)
+		// Recurse
+		recursiveWalk(n.Left)
+		recursiveWalk(n.Right)
+
+	case *ast.CallExpression:
+		ctx.HandleCallExpression(n, recursiveWalk)
+		// Recurse args
+		recursiveWalk(n.Callee)
+		for _, arg := range n.ArgumentList {
+			recursiveWalk(arg)
+		}
+
+	case *ast.ObjectLiteral:
+		// Handle React sinks or other object properties
+		// For now just recurse
+		for _, prop := range n.Value {
+			if keyed, ok := prop.(*ast.PropertyKeyed); ok {
+				recursiveWalk(keyed.Value)
+			}
+		}
+
+	// Default recursion for containers
+	case *ast.Program:
+		for _, stmt := range n.Body {
+			recursiveWalk(stmt)
+		}
+	case *ast.BlockStatement:
+		for _, stmt := range n.List {
+			recursiveWalk(stmt)
+		}
+	case *ast.ExpressionStatement:
+		recursiveWalk(n.Expression)
+	case *ast.IfStatement:
+		recursiveWalk(n.Test)
+		recursiveWalk(n.Consequent)
+		recursiveWalk(n.Alternate)
+	case *ast.ReturnStatement:
+		recursiveWalk(n.Argument)
+	case *ast.VariableStatement:
+		for _, expr := range n.List {
+			recursiveWalk(expr)
+		}
+	case *ast.BinaryExpression:
+		recursiveWalk(n.Left)
+		recursiveWalk(n.Right)
+	case *ast.DotExpression:
+		recursiveWalk(n.Left)
+	case *ast.BracketExpression:
+		recursiveWalk(n.Left)
+		recursiveWalk(n.Member)
+	case *ast.SequenceExpression:
+		for _, expr := range n.Sequence {
+			recursiveWalk(expr)
+		}
+	case *ast.UnaryExpression:
+		recursiveWalk(n.Operand)
+	case *ast.ConditionalExpression:
+		recursiveWalk(n.Test)
+		recursiveWalk(n.Consequent)
+		recursiveWalk(n.Alternate)
+	case *ast.NewExpression:
+		recursiveWalk(n.Callee)
+		for _, arg := range n.ArgumentList {
+			recursiveWalk(arg)
+		}
+	}
+}
+
+// HandleBinding processes variable declarations.
+func (ctx *AnalysisContext) HandleBinding(n *ast.Binding) {
+	decl := n
+	if target, ok := decl.Target.(*ast.Identifier); ok {
+		if decl.Initializer != nil {
+			// Check for Sanitization FIRST
+			if isSanitized(decl.Initializer) {
+				ctx.Logger.VV("DOM: Variable '%s' is sanitized", string(target.Name))
+			} else {
+				// Check if Init is a source or contains a source
+				source, isSrc := ctx.containsSource(decl.Initializer)
+				if isSrc {
+					// Check for Safe Properties/Methods
+					isSafe := false
+					if dot, ok := decl.Initializer.(*ast.DotExpression); ok {
+						if isSafeProperty(string(dot.Identifier.Name)) {
+							isSafe = true
+							ctx.Logger.VV("DOM: Ignoring safe property access: %s", string(dot.Identifier.Name))
+						}
+					} else if call, ok := decl.Initializer.(*ast.CallExpression); ok {
+						methodName := ""
+						if dot, ok := call.Callee.(*ast.DotExpression); ok {
+							methodName = string(dot.Identifier.Name)
+						}
+						if isSafeMethod(methodName) {
+							isSafe = true
+							ctx.Logger.VV("DOM: Ignoring safe method call: %s", methodName)
+						}
+					}
+
+					if !isSafe {
+						ctx.CurrentScope()[string(target.Name)] = source
+						ctx.Logger.VV("DOM: Variable '%s' tainted from '%s'", string(target.Name), source)
+					}
+				} else if id, ok := decl.Initializer.(*ast.Identifier); ok {
+					if taintedSrc, ok := ctx.LookupTaint(string(id.Name)); ok {
+						ctx.CurrentScope()[string(target.Name)] = taintedSrc
+					}
+				} else if call, ok := decl.Initializer.(*ast.CallExpression); ok {
+					// Check safe method
+					methodName := ""
+					if dot, ok := call.Callee.(*ast.DotExpression); ok {
+						methodName = string(dot.Identifier.Name)
+					}
+					if isSafeMethod(methodName) {
+						// Safe
+					} else {
+						for _, arg := range call.ArgumentList {
+							if id, ok := arg.(*ast.Identifier); ok {
+								if src, ok := ctx.LookupTaint(string(id.Name)); ok {
+									ctx.CurrentScope()[string(target.Name)] = src
+								}
+							}
+						}
+					}
+				} else if bin, ok := decl.Initializer.(*ast.BinaryExpression); ok {
+					// Binary expression taint check
+					tainted := false
+					src := ""
+					checkNode := func(e ast.Expression) {
+						if id, ok := e.(*ast.Identifier); ok {
+							if s, ok := ctx.LookupTaint(string(id.Name)); ok {
+								tainted = true
+								src = s
+							}
+						} else if s, ok := ctx.isSource(e); ok {
+							tainted = true
+							src = s
+						}
+					}
+					checkNode(bin.Left)
+					checkNode(bin.Right)
+
+					if tainted {
+						ctx.CurrentScope()[string(target.Name)] = src
+					}
+				}
+			}
+		}
+	}
+}
