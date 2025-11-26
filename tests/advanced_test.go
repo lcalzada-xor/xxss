@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -29,7 +30,7 @@ func TestBlindXSS(t *testing.T) {
 	defer targetServer.Close()
 
 	// 3. Initialize scanner with blind URL
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 	sc.SetBlindURL(callbackServer.URL)
 
@@ -41,7 +42,7 @@ func TestBlindXSS(t *testing.T) {
 
 	// Let's use Scan() to test integration
 	// We need a parameter to scan.
-	_, err := sc.Scan(targetServer.URL + "/?p=test")
+	_, err := sc.Scan(context.Background(), targetServer.URL + "/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -80,7 +81,7 @@ func TestBlindXSS(t *testing.T) {
 	}))
 	defer targetServer2.Close()
 
-	_, err = sc.Scan(targetServer2.URL + "/?p=test")
+	_, err = sc.Scan(context.Background(), targetServer2.URL + "/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -110,12 +111,12 @@ func TestBlindXSSHeader(t *testing.T) {
 	}))
 	defer targetServer.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 	sc.SetBlindURL(callbackServer.URL)
 
 	// Scan headers
-	_, err := sc.ScanHeader(targetServer.URL, "User-Agent")
+	_, err := sc.ScanHeader(context.Background(), targetServer.URL, "User-Agent")
 	if err != nil {
 		t.Fatalf("ScanHeader failed: %v", err)
 	}
@@ -143,10 +144,10 @@ func TestPolyglotSuggestion(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.Scan(server.URL + "/?p=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -189,13 +190,13 @@ func TestPolyglotContexts(t *testing.T) {
 			name:            "Attribute Context",
 			response:        `<html><body><div title="%s"></div></body></html>`,
 			expectedContext: models.ContextAttribute,
-			expectedPayload: "\" onmouseover=\"alert(1)",
+			expectedPayload: "\"/onmouseover=alert(1)/x=\"",
 		},
 		{
 			name:            "JavaScript Context",
 			response:        `<html><body><script>var x = '%s';</script></body></html>`,
 			expectedContext: models.ContextJSSingleQuote,
-			expectedPayload: "';alert(1);//",
+			expectedPayload: "';alert(1)//",
 		},
 	}
 
@@ -216,10 +217,10 @@ func TestPolyglotContexts(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client, _ := network.NewClient(2*time.Second, "", 10, 0)
+			client := network.NewClient(2*time.Second, "", 10, 0)
 			sc := scanner.NewScanner(client, map[string]string{})
 
-			results, err := sc.Scan(server.URL + "/?p=test")
+			results, err := sc.Scan(context.Background(), server.URL + "/?p=test")
 			if err != nil {
 				t.Fatalf("Scan failed: %v", err)
 			}
@@ -262,7 +263,7 @@ func TestBlindXSSPOSTBody(t *testing.T) {
 	}))
 	defer targetServer.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 	sc.SetBlindURL(callbackServer.URL)
 
@@ -275,7 +276,7 @@ func TestBlindXSSPOSTBody(t *testing.T) {
 	}
 
 	// Scan POST request
-	_, err := sc.ScanRequest(config)
+	_, err := sc.ScanRequest(context.Background(), config)
 	if err != nil {
 		t.Fatalf("ScanRequest failed: %v", err)
 	}

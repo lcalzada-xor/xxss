@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/pkg/network"
 )
 
 // GenerateUniqueCallback creates a unique callback URL with identifier
@@ -146,7 +147,7 @@ func BlindPayloadsForContext(callbackURL string, context models.ReflectionContex
 }
 
 // InjectBlind performs a fire-and-forget injection of blind XSS payloads
-func InjectBlind(client *http.Client, headers map[string]string, targetURL, param, callbackURL string, verbose bool) int {
+func InjectBlind(client *network.Client, headers map[string]string, targetURL, param, callbackURL string, verbose bool) int {
 	// Generate unique callback URL for this parameter
 	uniqueURL := GenerateUniqueCallback(callbackURL, param)
 	payloads := BlindPayloads(uniqueURL)
@@ -191,7 +192,7 @@ func InjectBlind(client *http.Client, headers map[string]string, targetURL, para
 }
 
 // InjectBlindHeader performs a fire-and-forget injection of blind XSS payloads into headers
-func InjectBlindHeader(client *http.Client, headers map[string]string, targetURL, header, callbackURL string, verbose bool) int {
+func InjectBlindHeader(client *network.Client, headers map[string]string, targetURL, header, callbackURL string, verbose bool) int {
 	// Generate unique callback URL for this header
 	uniqueURL := GenerateUniqueCallback(callbackURL, header)
 	payloads := BlindPayloads(uniqueURL)
@@ -232,7 +233,7 @@ func InjectBlindHeader(client *http.Client, headers map[string]string, targetURL
 }
 
 // InjectBlindBody performs a fire-and-forget injection of blind XSS payloads into POST body parameters
-func InjectBlindBody(client *http.Client, headers map[string]string, config *models.RequestConfig, param, callbackURL string, params map[string]string, verbose bool) int {
+func InjectBlindBody(client *network.Client, headers map[string]string, config *models.RequestConfig, param, callbackURL string, params map[string]string, verbose bool) int {
 	// Generate unique callback URL for this parameter
 	uniqueURL := GenerateUniqueCallback(callbackURL, param)
 	payloads := BlindPayloads(uniqueURL)

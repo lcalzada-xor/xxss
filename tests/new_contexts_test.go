@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,10 +23,10 @@ func TestContextDetection_TemplateLiteral(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.Scan(server.URL + "/?p=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -54,10 +55,10 @@ func TestContextDetection_SVG(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.Scan(server.URL + "/?p=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -83,10 +84,10 @@ func TestContextDetection_MetaRefresh(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.Scan(server.URL + "/?p=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -115,10 +116,10 @@ func TestContextDetection_DataURI(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.Scan(server.URL + "/?p=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}

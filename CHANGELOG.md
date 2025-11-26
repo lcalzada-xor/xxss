@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.0.0] - 2025-11-26
+### Added
+- Thread-safe logger with `sync.Mutex`
+- Graceful shutdown handling (Ctrl+C)
+- Context propagation throughout the scanner
+- Advanced scanning flags section in help
+- JSON payload construction fix
+
 ## [v1.8.0] - 2025-11-24
 ### Added
 - **New AST-Based DOM XSS Engine**: Replaced regex-based analysis with a full JavaScript parser (`goja/parser`) for superior accuracy.

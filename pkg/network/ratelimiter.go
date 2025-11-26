@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -29,14 +30,20 @@ func NewRateLimiter(rate float64) *RateLimiter {
 	}
 }
 
-// Wait blocks until a token is available
-func (rl *RateLimiter) Wait() {
+// Wait blocks until a token is available or the context is canceled.
+func (rl *RateLimiter) Wait(ctx context.Context) error {
 	if rl == nil {
-		return // No rate limiting
+		return nil // No rate limiting
+	}
+
+	// Check context before locking
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
 
 	rl.mu.Lock()
-	defer rl.mu.Unlock()
 
 	// Refill tokens based on time elapsed
 	now := time.Now()
@@ -54,10 +61,21 @@ func (rl *RateLimiter) Wait() {
 	if rl.tokens < 1 {
 		waitTime := time.Duration((1-rl.tokens)/rl.rate*1000) * time.Millisecond
 		rl.mu.Unlock()
-		time.Sleep(waitTime)
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(waitTime):
+			// Continue after wait
+		}
+
 		rl.mu.Lock()
+		// Re-check tokens after wait (simplified)
 		rl.tokens = 0
 	} else {
 		rl.tokens -= 1
 	}
+
+	rl.mu.Unlock()
+	return nil
 }

@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"html"
 	"net/http"
 	"net/http/httptest"
@@ -23,11 +24,11 @@ func TestHTMLEncodingFalsePositive(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	// Scan the URL with a parameter
-	results, err := sc.Scan(server.URL + "/?q=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?q=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -58,10 +59,10 @@ func TestMultipleReflections(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.Scan(server.URL + "/?q=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?q=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -91,10 +92,10 @@ func TestXSSWithoutQuotes(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.Scan(server.URL + "/?q=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?q=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -134,10 +135,10 @@ func TestLargeReflection(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.Scan(server.URL + "/?q=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?q=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -161,11 +162,11 @@ func TestUniqueBaselineProbe(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	// Test with a common value that might appear elsewhere
-	results, err := sc.Scan(server.URL + "/?id=1")
+	results, err := sc.Scan(context.Background(), server.URL + "/?id=1")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -188,11 +189,11 @@ func TestRawPayloadMode(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 	sc.SetRawPayload(true) // Enable raw payload mode
 
-	results, err := sc.Scan(server.URL + "/?q=test")
+	results, err := sc.Scan(context.Background(), server.URL + "/?q=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}

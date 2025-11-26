@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -30,10 +31,10 @@ func TestPOSTFormScan(t *testing.T) {
 		ContentType: models.ContentTypeForm,
 	}
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.ScanRequest(config)
+	results, err := sc.ScanRequest(context.Background(), config)
 	if err != nil {
 		t.Fatalf("ScanRequest failed: %v", err)
 	}
@@ -79,10 +80,10 @@ func TestPOSTJSONScan(t *testing.T) {
 		ContentType: models.ContentTypeJSON,
 	}
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.ScanRequest(config)
+	results, err := sc.ScanRequest(context.Background(), config)
 	if err != nil {
 		t.Fatalf("ScanRequest failed: %v", err)
 	}
@@ -97,6 +98,12 @@ func TestPOSTJSONScan(t *testing.T) {
 // Test PUT request scanning
 func TestPUTScan(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow WAF probes (GET)
+		if r.Method == "GET" && r.URL.Query().Get("waf_probe") != "" {
+			w.WriteHeader(200)
+			return
+		}
+
 		if r.Method != "PUT" {
 			t.Errorf("Expected PUT method, got %s", r.Method)
 		}
@@ -118,10 +125,10 @@ func TestPUTScan(t *testing.T) {
 		ContentType: models.ContentTypeJSON,
 	}
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.ScanRequest(config)
+	results, err := sc.ScanRequest(context.Background(), config)
 	if err != nil {
 		t.Fatalf("ScanRequest failed: %v", err)
 	}
@@ -148,13 +155,13 @@ func TestHeaderInjectionScan(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	headers := []string{"User-Agent", "Referer", "X-Forwarded-For"}
 	var results []models.Result
 	for _, h := range headers {
-		res, err := sc.ScanHeader(server.URL, h)
+		res, err := sc.ScanHeader(context.Background(), server.URL, h)
 		if err != nil {
 			// It might fail if not reflected, but in this test we expect reflection
 			continue
@@ -191,17 +198,17 @@ func TestMixedScan(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	// Scan GET parameters
-	getResults, err := sc.Scan(server.URL + "/?q=test")
+	getResults, err := sc.Scan(context.Background(), server.URL + "/?q=test")
 	if err != nil {
 		t.Fatalf("GET scan failed: %v", err)
 	}
 
 	// Scan headers
-	headerResult, err := sc.ScanHeader(server.URL, "User-Agent")
+	headerResult, err := sc.ScanHeader(context.Background(), server.URL, "User-Agent")
 	if err != nil {
 		t.Fatalf("Header scan failed: %v", err)
 	}

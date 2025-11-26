@@ -1,5 +1,6 @@
 package models
 
+// InjectionType defines where the payload is injected.
 type InjectionType string
 
 const (
@@ -8,6 +9,7 @@ const (
 	InjectionHeader InjectionType = "header"
 )
 
+// ReflectionContext defines the context where the payload is reflected.
 type ReflectionContext string
 
 const (
@@ -30,6 +32,7 @@ const (
 	ContextUnknown         ReflectionContext = "unknown"
 )
 
+// SecurityHeaders holds information about security-related HTTP headers.
 type SecurityHeaders struct {
 	ContentType         string `json:"content_type,omitempty"`
 	CSP                 string `json:"csp,omitempty"`
@@ -46,6 +49,7 @@ type Result struct {
 	Method           string            `json:"method"`
 	Parameter        string            `json:"parameter"`
 	InjectionType    InjectionType     `json:"injection_type"`
+	HTTPStatus       int               `json:"http_status"`
 	Reflected        bool              `json:"reflected"`
 	Unfiltered       []string          `json:"unfiltered"`
 	Context          ReflectionContext `json:"context,omitempty"`

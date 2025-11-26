@@ -1,44 +1,50 @@
 package scanner
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/lcalzada-xor/xxss/pkg/logger"
 	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/pkg/network"
+	"github.com/lcalzada-xor/xxss/pkg/scanner/dom"
 	"github.com/lcalzada-xor/xxss/pkg/scanner/payloads"
 	"github.com/lcalzada-xor/xxss/pkg/scanner/reflection"
 	"github.com/lcalzada-xor/xxss/pkg/scanner/security"
 )
 
+// Scanner is the main struct for the XSS scanner.
+// It holds configuration, dependencies, and state for the scanning process.
 type Scanner struct {
-	client        *http.Client
+	client        *network.Client
 	headers       map[string]string
 	useRawPayload bool
 	blindURL      string
-	verbose       bool
-	domScanner    *DOMScanner
+	logger        *logger.Logger
+	domScanner    *dom.DOMScanner
 	scanDOM       bool
 	scanDeepDOM   bool
 	requestCount  int
 	requestMutex  sync.Mutex
 }
 
-func NewScanner(client *http.Client, headers map[string]string) *Scanner {
+// NewScanner creates a new Scanner instance with the given HTTP client and headers.
+func NewScanner(client *network.Client, headers map[string]string) *Scanner {
 	return &Scanner{
 		client:        client,
 		headers:       headers,
 		useRawPayload: false,
 		blindURL:      "",
-		verbose:       false,
+		logger:        logger.NewLogger(0), // Default: silent
 		requestCount:  0,
-		domScanner:    NewDOMScanner(),
+		domScanner:    dom.NewDOMScanner(logger.NewLogger(0)),
 	}
 }
 
@@ -57,9 +63,10 @@ func (s *Scanner) SetBlindURL(url string) {
 	s.blindURL = url
 }
 
-// SetVerbose enables or disables verbose output
-func (s *Scanner) SetVerbose(verbose bool) {
-	s.verbose = verbose
+// SetVerboseLevel sets the verbosity level (0=silent, 1=verbose, 2=very verbose)
+func (s *Scanner) SetVerboseLevel(level int) {
+	s.logger = logger.NewLogger(level)
+	s.domScanner.SetVerboseLevel(level)
 }
 
 // SetRawPayload enables or disables raw payload mode (no URL encoding)
@@ -82,13 +89,14 @@ func (s *Scanner) ResetRequestCount() {
 }
 
 // Scan performs the XSS scan on the given URL.
-func (s *Scanner) Scan(targetURL string) ([]models.Result, error) {
+// It checks for DOM XSS (if enabled) and Reflected XSS using a single-shot probe strategy.
+func (s *Scanner) Scan(ctx context.Context, targetURL string) ([]models.Result, error) {
 	results := []models.Result{}
 
 	// DOM XSS Scanning
 	if s.scanDOM {
 		// Fetch the page content
-		req, err := http.NewRequest("GET", targetURL, nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 		if err != nil {
 			return results, err
 		}
@@ -114,12 +122,26 @@ func (s *Scanner) Scan(targetURL string) ([]models.Result, error) {
 
 		var findings []models.DOMFinding
 		if s.scanDeepDOM {
-			findings = s.domScanner.ScanDeepDOM(targetURL, body, s.client)
+			findings = s.domScanner.ScanDeepDOM(targetURL, body, s.client.HTTPClient)
 		} else {
 			findings = s.domScanner.ScanDOM(body)
 		}
 
 		if len(findings) > 0 {
+			s.logger.Section("DOM XSS Findings Summary")
+			s.logger.Detail("Total findings: %d", len(findings))
+			for i, finding := range findings {
+				s.logger.VV("")
+				s.logger.VV("Finding #%d:", i+1)
+				s.logger.Detail("  Confidence: %s", finding.Confidence)
+				s.logger.Detail("  Source: %s", finding.Source)
+				s.logger.Detail("  Sink: %s", finding.Sink)
+				if finding.LineNumber > 0 {
+					s.logger.Detail("  Line: %d", finding.LineNumber)
+				}
+				s.logger.VV("  Description: %s", finding.Description)
+			}
+
 			results = append(results, models.Result{
 				URL:         targetURL,
 				Method:      "GET",
@@ -127,11 +149,13 @@ func (s *Scanner) Scan(targetURL string) ([]models.Result, error) {
 				Exploitable: true, // Potential DOM XSS
 				DOMFindings: findings,
 			})
+		} else {
+			s.logger.Detail("No DOM XSS vulnerabilities detected")
 		}
 	}
 
 	// 1. Baseline Check: See which parameters are reflected at all.
-	reflectedParams, err := s.checkReflection(targetURL)
+	reflectedParams, err := s.checkReflection(ctx, targetURL)
 	if err != nil {
 		return results, err
 	}
@@ -142,7 +166,12 @@ func (s *Scanner) Scan(targetURL string) ([]models.Result, error) {
 
 	// 2. Single-Shot Probe: For each reflected param, inject all chars.
 	for _, param := range reflectedParams {
-		result, err := s.probeParameter(targetURL, param)
+		// Check context before each probe
+		if ctx.Err() != nil {
+			return results, ctx.Err()
+		}
+
+		result, err := s.probeParameter(ctx, targetURL, param)
 		if err != nil {
 			// Log error but continue with other params?
 			// For now, just continue.
@@ -162,13 +191,15 @@ func (s *Scanner) Scan(targetURL string) ([]models.Result, error) {
 	return results, nil
 }
 
-func (s *Scanner) checkReflection(targetURL string) ([]string, error) {
+func (s *Scanner) checkReflection(ctx context.Context, targetURL string) ([]string, error) {
 	reflected := []string{}
 
 	u, err := url.Parse(targetURL)
 	if err != nil {
 		return reflected, err
 	}
+
+	s.logger.Section("Reflection Check")
 
 	// Test each parameter individually to avoid false negatives
 	// when a parameter's reflection depends on another parameter's value
@@ -183,12 +214,15 @@ func (s *Scanner) checkReflection(targetURL string) ([]string, error) {
 		probe := fmt.Sprintf("xxss_%d_%d", time.Now().UnixNano(), rand.Intn(10000))
 		testQS.Set(key, probe)
 
+		s.logger.VV("Testing parameter: '%s' with probe: '%s'", key, probe)
+
 		// Build test URL with only this parameter modified
 		testURL := *u
 		testURL.RawQuery = testQS.Encode()
 
-		req, err := http.NewRequest("GET", testURL.String(), nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", testURL.String(), nil)
 		if err != nil {
+			s.logger.Detail("Error creating request: %v", err)
 			continue // Skip this parameter on error
 		}
 		req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
@@ -198,35 +232,45 @@ func (s *Scanner) checkReflection(targetURL string) ([]string, error) {
 			req.Header.Set(k, v)
 		}
 
+		start := time.Now()
 		resp, err := s.client.Do(req)
 		s.requestMutex.Lock()
 		s.requestCount++
 		s.requestMutex.Unlock()
 		if err != nil {
+			s.logger.Detail("Error sending request: %v", err)
 			continue // Skip this parameter on error
 		}
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		elapsed := time.Since(start)
 		if err != nil {
+			s.logger.Detail("Error reading response: %v", err)
 			continue // Skip this parameter on error
 		}
 		body := string(bodyBytes)
 
 		// Check if this probe is reflected
-		if strings.Contains(body, probe) {
+		isReflected := strings.Contains(body, probe)
+		if isReflected {
 			reflected = append(reflected, key)
+			s.logger.Detail("Reflected: YES (%d bytes, %v)", len(bodyBytes), elapsed)
+		} else {
+			s.logger.Detail("Reflected: NO (%d bytes, %v)", len(bodyBytes), elapsed)
 		}
 	}
 
 	return reflected, nil
 }
 
-func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error) {
+func (s *Scanner) probeParameter(ctx context.Context, targetURL, param string) (models.Result, error) {
 	u, err := url.Parse(targetURL)
 	if err != nil {
 		return models.Result{}, err
 	}
+
+	s.logger.Section(fmt.Sprintf("Probing Parameter: %s", param))
 
 	qs := u.Query()
 	val := qs.Get(param)
@@ -236,8 +280,12 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 	probeStr := "xssprobe"
 	payload := val + probeStr + strings.Join(reflection.SpecialChars, "") + probeStr
 
+	s.logger.VV("Payload (%d chars): %s", len(payload), payload)
+
 	var finalURL string
+	encodingMode := "URL-encoded"
 	if s.useRawPayload {
+		encodingMode = "Raw (no encoding)"
 		// Raw mode: construct URL manually without encoding special characters
 		qs.Set(param, payload)
 		// Build the query string manually to avoid encoding
@@ -265,7 +313,10 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 		finalURL = u.String()
 	}
 
-	req, err := http.NewRequest("GET", finalURL, nil)
+	s.logger.Detail("Encoding: %s", encodingMode)
+	s.logger.VV("Request URL: %s", finalURL)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", finalURL, nil)
 	if err != nil {
 		return models.Result{}, err
 	}
@@ -276,13 +327,18 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 		req.Header.Set(k, v)
 	}
 
+	start := time.Now()
 	resp, err := s.client.Do(req)
 	s.requestMutex.Lock()
 	s.requestCount++
 	s.requestMutex.Unlock()
+	elapsed := time.Since(start)
 	if err != nil {
 		return models.Result{}, err
 	}
+
+	s.logger.Detail("Response: %d %s (%v, %d bytes)", resp.StatusCode, resp.Status, elapsed, resp.ContentLength)
+
 	// Analyze reflection using shared method
 	return s.AnalyzeReflection(targetURL, "GET", param, models.InjectionQuery, resp, probeStr)
 }
@@ -291,6 +347,9 @@ func (s *Scanner) probeParameter(targetURL, param string) (models.Result, error)
 func (s *Scanner) AnalyzeReflection(targetURL, method, param string, injectionType models.InjectionType, resp *http.Response, probeStr string) (models.Result, error) {
 	defer resp.Body.Close()
 
+	// Capture HTTP status code
+	statusCode := resp.StatusCode
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return models.Result{}, err
@@ -298,33 +357,57 @@ func (s *Scanner) AnalyzeReflection(targetURL, method, param string, injectionTy
 	body := string(bodyBytes)
 
 	unfiltered := reflection.AnalyzeResponse(body, probeStr)
+	s.logger.Detail("Unfiltered chars: %v", unfiltered)
 
 	// Detect context
-	context := reflection.DetectContext(body, probeStr)
+	s.logger.Section("Context Analysis")
+	context := reflection.DetectContextVerbose(body, probeStr, s.logger)
 
 	// Analyze security headers
+	s.logger.Section("Security Analysis")
+	s.logger.Detail("HTTP Status: %d", statusCode)
 	securityHeaders := security.AnalyzeSecurityHeaders(resp)
 
 	// Detect WAF
 	waf := security.DetectWAF(resp.Header)
+	if !waf.Detected {
+		// Active Probe
+		waf = security.ProbeWAF(s.client.HTTPClient, targetURL)
+	}
 	if waf.Detected {
 		securityHeaders.WAF = waf.Name
+		s.logger.Detail("WAF: %s", waf.Name)
+	} else {
+		s.logger.Detail("WAF: not detected")
+	}
+
+	// Log security headers in -vv mode
+	if securityHeaders.CSP != "" {
+		s.logger.Detail("CSP: %s", securityHeaders.CSP)
+	} else {
+		s.logger.Detail("CSP: none")
+	}
+	if securityHeaders.XXSSProtection != "" {
+		s.logger.Detail("X-XSS-Protection: %s", securityHeaders.XXSSProtection)
+	} else {
+		s.logger.Detail("X-XSS-Protection: not set")
 	}
 
 	// Determine exploitability
 	exploitable := security.IsExploitable(context, securityHeaders, unfiltered)
+	s.logger.Detail("Exploitable: %v", exploitable)
 
 	// Get suggested payload
-	suggestedPayload := reflection.GetSuggestedPayload(context, unfiltered)
-	if suggestedPayload == "" {
-		suggestedPayload = payloads.GetPolyglot(context)
-	}
+	s.logger.Section("Suggested Payload")
+	suggestedPayload := payloads.GeneratePayload(context, unfiltered)
+	s.logger.VV("%s", suggestedPayload)
 
 	return models.Result{
 		URL:              targetURL,
 		Method:           method,
 		Parameter:        param,
 		InjectionType:    injectionType,
+		HTTPStatus:       statusCode,
 		Reflected:        true,
 		Unfiltered:       unfiltered,
 		Context:          context,
@@ -339,9 +422,7 @@ func (s *Scanner) injectContextualBlind(targetURL, param string, context models.
 	uniqueURL := payloads.GenerateUniqueCallback(s.blindURL, param)
 	contextPayloads := payloads.BlindPayloadsForContext(uniqueURL, context)
 
-	if s.verbose {
-		fmt.Fprintf(os.Stderr, "[BLIND] %s [%s] → %s (%d contextual payloads)\n", param, context, uniqueURL, len(contextPayloads))
-	}
+	s.logger.V("[BLIND] %s [%s] → %s (%d contextual payloads)", param, context, uniqueURL, len(contextPayloads))
 
 	u, err := url.Parse(targetURL)
 	if err != nil {

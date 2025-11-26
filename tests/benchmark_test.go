@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,12 +22,12 @@ func BenchmarkScanWithPooling(b *testing.B) {
 	defer server.Close()
 
 	// Create client with pooling (concurrency=40, default)
-	client, _ := network.NewClient(2*time.Second, "", 40, 0)
+	client := network.NewClient(2*time.Second, "", 40, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		sc.Scan(server.URL + "/?p=test")
+		sc.Scan(context.Background(), server.URL + "/?p=test")
 	}
 }
 
@@ -39,12 +40,12 @@ func BenchmarkScanLowConcurrency(b *testing.B) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		sc.Scan(server.URL + "/?p=test")
+		sc.Scan(context.Background(), server.URL + "/?p=test")
 	}
 }
 
@@ -57,12 +58,12 @@ func BenchmarkScanHighConcurrency(b *testing.B) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 100, 0)
+	client := network.NewClient(2*time.Second, "", 100, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		sc.Scan(server.URL + "/?p=test")
+		sc.Scan(context.Background(), server.URL + "/?p=test")
 	}
 }
 
@@ -75,13 +76,13 @@ func BenchmarkParallelScans(b *testing.B) {
 	}))
 	defer server.Close()
 
-	client, _ := network.NewClient(2*time.Second, "", 40, 0)
+	client := network.NewClient(2*time.Second, "", 40, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			sc.Scan(server.URL + "/?p=test")
+			sc.Scan(context.Background(), server.URL + "/?p=test")
 		}
 	})
 }

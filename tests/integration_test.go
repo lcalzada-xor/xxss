@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,7 +21,7 @@ func TestProxySupport(t *testing.T) {
 	defer proxyServer.Close()
 
 	// 2. Create a Client with this proxy
-	client, _ := network.NewClient(2*time.Second, proxyServer.URL, 10, 0)
+	client := network.NewClient(2*time.Second, proxyServer.URL, 10, 0)
 
 	// 3. Make a request to anywhere (should go through proxy)
 	// We need a target that resolves, but the proxy will intercept it effectively if configured right.
@@ -45,14 +46,14 @@ func TestCustomHeaders(t *testing.T) {
 	defer server.Close()
 
 	// 2. Create Scanner with custom headers
-	client, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client := network.NewClient(2*time.Second, "", 10, 0)
 	headers := map[string]string{
 		"X-Custom": "MyHeader",
 	}
 	sc := scanner.NewScanner(client, headers)
 
 	// 3. Scan the target
-	sc.Scan(server.URL + "/?p=test")
+	sc.Scan(context.Background(), server.URL + "/?p=test")
 
 	if !headerReceived {
 		t.Error("Expected X-Custom header to be sent, but it wasn't")

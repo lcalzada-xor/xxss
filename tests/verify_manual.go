@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -28,7 +29,7 @@ func runTests() error {
 	}))
 	defer proxyServer.Close()
 
-	client, _ := network.NewClient(2*time.Second, proxyServer.URL, 10, 0)
+	client := network.NewClient(2*time.Second, proxyServer.URL, 10, 0)
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
 	client.Do(req)
 
@@ -45,12 +46,12 @@ func runTests() error {
 	}))
 	defer server.Close()
 
-	client2, _ := network.NewClient(2*time.Second, "", 10, 0)
+	client2 := network.NewClient(2*time.Second, "", 10, 0)
 	headers := map[string]string{
 		"X-Custom": "MyHeader",
 	}
 	sc := scanner.NewScanner(client2, headers)
-	sc.Scan(server.URL + "/?p=test")
+	sc.Scan(context.Background(), server.URL + "/?p=test")
 
 	if !headerReceived {
 		return fmt.Errorf("Custom header was not received")

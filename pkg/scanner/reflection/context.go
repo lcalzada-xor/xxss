@@ -75,6 +75,136 @@ func DetectContext(body, probe string) models.ReflectionContext {
 	return models.ContextHTML
 }
 
+// DetectContextVerbose is like DetectContext but logs detailed information for debugging
+func DetectContextVerbose(body, probe string, logger interface {
+	VV(string, ...interface{})
+	Detail(string, ...interface{})
+}) models.ReflectionContext {
+	// Find first occurrence of probe
+	index := strings.Index(body, probe)
+	if index == -1 {
+		logger.Detail("Type: Unknown (probe not found)")
+		return models.ContextUnknown
+	}
+
+	// Get surrounding context (500 chars before and after)
+	start := max(0, index-500)
+	end := min(len(body), index+len(probe)+500)
+	context := body[start:end]
+
+	// Get snippet around probe (±50 chars)
+	snippetStart := max(0, index-50)
+	snippetEnd := min(len(body), index+len(probe)+50)
+	snippet := body[snippetStart:snippetEnd]
+	// Truncate snippet for display
+	if len(snippet) > 100 {
+		snippet = snippet[:100] + "..."
+	}
+
+	// Check for AngularJS first (before other checks)
+	if detectAngularJS(body) {
+		if isInAngularTemplate(context, probe) {
+			logger.Detail("Type: %s", models.ContextAngular)
+			logger.VV("Snippet: %s", snippet)
+			logger.Detail("Reason: Inside AngularJS template expression")
+			return models.ContextAngular
+		}
+	}
+
+	// Check contexts in order of specificity
+	if isInComment(context, probe) {
+		logger.Detail("Type: %s", models.ContextComment)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside HTML comment")
+		return models.ContextComment
+	}
+
+	if isInMetaRefresh(context, probe) {
+		logger.Detail("Type: %s", models.ContextMetaRefresh)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside meta refresh tag")
+		return models.ContextMetaRefresh
+	}
+
+	if isInDataURI(context, probe) {
+		logger.Detail("Type: %s", models.ContextDataURI)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside data URI")
+		return models.ContextDataURI
+	}
+
+	if isInSVG(context, probe) {
+		logger.Detail("Type: %s", models.ContextSVG)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside SVG element")
+		return models.ContextSVG
+	}
+
+	if isInTemplateLiteral(context, probe) {
+		logger.Detail("Type: %s", models.ContextTemplateLiteral)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside JavaScript template literal")
+		return models.ContextTemplateLiteral
+	}
+
+	if isJS, jsContext := analyzeJavaScriptContext(context, probe); isJS {
+		logger.Detail("Type: %s", jsContext)
+		logger.VV("Snippet: %s", snippet)
+		switch jsContext {
+		case models.ContextJSSingleQuote:
+			logger.Detail("Reason: Inside single-quoted JavaScript string")
+		case models.ContextJSDoubleQuote:
+			logger.Detail("Reason: Inside double-quoted JavaScript string")
+		case models.ContextJSRaw:
+			logger.Detail("Reason: Inside raw JavaScript code")
+		default:
+			logger.Detail("Reason: Inside JavaScript context")
+		}
+		return jsContext
+	}
+
+	if isInCSS(context, probe) {
+		logger.Detail("Type: %s", models.ContextCSS)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside CSS style block")
+		return models.ContextCSS
+	}
+
+	if isInURL(context, probe) {
+		logger.Detail("Type: %s", models.ContextURL)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside URL attribute (href, src, etc.)")
+		return models.ContextURL
+	}
+
+	if isInTagName(context, probe) {
+		logger.Detail("Type: %s", models.ContextTagName)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside HTML tag name")
+		return models.ContextTagName
+	}
+
+	if isInRCDATA(context, probe) {
+		logger.Detail("Type: %s", models.ContextRCDATA)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside RCDATA element (title, textarea)")
+		return models.ContextRCDATA
+	}
+
+	if isInAttribute(context, probe) {
+		logger.Detail("Type: %s", models.ContextAttribute)
+		logger.VV("Snippet: %s", snippet)
+		logger.Detail("Reason: Inside HTML attribute value")
+		return models.ContextAttribute
+	}
+
+	// Default to HTML
+	logger.Detail("Type: %s", models.ContextHTML)
+	logger.VV("Snippet: %s", snippet)
+	logger.Detail("Reason: Default HTML context")
+	return models.ContextHTML
+}
+
 // GetSuggestedPayload returns a context-specific XSS payload
 func GetSuggestedPayload(context models.ReflectionContext, unfiltered []string) string {
 	// Check which characters are available
