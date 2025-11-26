@@ -3,7 +3,7 @@ package payloads
 import (
 	"strings"
 
-	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 )
 
 // GeneratePayload constructs a context-specific payload based on allowed characters.

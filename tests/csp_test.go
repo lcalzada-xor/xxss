@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/pkg/scanner/security"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/security"
 )
 
 // TestCSPBypass_UnsafeInline tests detection of unsafe-inline

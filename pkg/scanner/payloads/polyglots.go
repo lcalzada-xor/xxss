@@ -1,6 +1,6 @@
 package payloads
 
-import "github.com/lcalzada-xor/xxss/pkg/models"
+import "github.com/lcalzada-xor/xxss/v2/pkg/models"
 
 // Polyglots is a map of context-specific XSS polyglots.
 // These payloads are designed to work in multiple contexts simultaneously.

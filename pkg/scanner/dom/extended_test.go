@@ -3,7 +3,7 @@ package dom
 import (
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
 )
 
 func TestDOMScanner_Extended(t *testing.T) {

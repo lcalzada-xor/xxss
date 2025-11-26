@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/pkg/models"
-	"github.com/lcalzada-xor/xxss/pkg/network"
-	"github.com/lcalzada-xor/xxss/pkg/scanner"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
+	"github.com/lcalzada-xor/xxss/v2/pkg/network"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner"
 )
 
 // Test HTML context detection

@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/pkg/network"
-	"github.com/lcalzada-xor/xxss/pkg/scanner"
+	"github.com/lcalzada-xor/xxss/v2/pkg/network"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner"
 )
 
 func verifyManualMain() {

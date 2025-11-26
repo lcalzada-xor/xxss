@@ -1,5 +1,10 @@
 # Changelog
 
+## [v2.0.1] - 2025-11-26
+### Fixed
+- Fixed module path to include `/v2` suffix for Go module compatibility
+- Fixed GoReleaser configuration
+
 ## [v2.0.0] - 2025-11-26
 ### Added
 - Thread-safe logger with `sync.Mutex`

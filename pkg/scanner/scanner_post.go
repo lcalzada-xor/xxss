@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/pkg/models"
-	"github.com/lcalzada-xor/xxss/pkg/scanner/payloads"
-	"github.com/lcalzada-xor/xxss/pkg/scanner/reflection"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflection"
 )
 
 // VulnerableHeaders is the list of common HTTP headers that can be vulnerable to XSS

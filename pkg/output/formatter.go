@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 )
 
 // Format returns the formatted result string based on the selected format

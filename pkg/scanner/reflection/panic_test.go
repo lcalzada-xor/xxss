@@ -3,7 +3,7 @@ package reflection
 import (
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 )
 
 func TestPanicReproduction(t *testing.T) {

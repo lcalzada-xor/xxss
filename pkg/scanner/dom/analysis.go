@@ -7,7 +7,7 @@ import (
 
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/parser"
-	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 )
 
 func (ds *DOMScanner) analyzeJS(jsCode string) []models.DOMFinding {

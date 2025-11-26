@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 )
 
 // AnalyzeSecurityHeaders extracts and analyzes security headers from response

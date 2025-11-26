@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/pkg/logger"
-	"github.com/lcalzada-xor/xxss/pkg/models"
-	"github.com/lcalzada-xor/xxss/pkg/network"
-	"github.com/lcalzada-xor/xxss/pkg/scanner/dom"
-	"github.com/lcalzada-xor/xxss/pkg/scanner/payloads"
-	"github.com/lcalzada-xor/xxss/pkg/scanner/reflection"
-	"github.com/lcalzada-xor/xxss/pkg/scanner/security"
+	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
+	"github.com/lcalzada-xor/xxss/v2/pkg/network"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/dom"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflection"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/security"
 )
 
 // Scanner is the main struct for the XSS scanner.

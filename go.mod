@@ -1,4 +1,4 @@
-module github.com/lcalzada-xor/xxss
+module github.com/lcalzada-xor/xxss/v2
 
 go 1.21
 

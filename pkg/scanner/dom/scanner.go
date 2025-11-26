@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lcalzada-xor/xxss/pkg/logger"
-	"github.com/lcalzada-xor/xxss/pkg/models"
+	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 )
 
 // DOMScanner handles static analysis for DOM XSS.
