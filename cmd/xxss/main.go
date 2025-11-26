@@ -117,7 +117,7 @@ func main() {
 			"      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m\n" +
 			"    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m\n" +
 			"   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m\n" +
-			"           \x1b[38;5;141mv2.1.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
+			"           \x1b[38;5;141mv2.1.1\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
 
 		fmt.Fprint(os.Stderr, banner)
 		h := `

@@ -143,7 +143,7 @@ cat urls.txt | xxss -b https://c59h6dg0vtc0000gg6c0g.oast.fun -v
 # [BLIND] user [javascript] → https://5f4dcc3b.c59h6dg0vtc0000gg6c0g.oast.fun (3 contextual payloads)
 ```
 
-**Features:**
+#### Features:
 - **Unique Identifiers**: Each parameter gets a unique subdomain (`param123.oast.fun`)
 - **Contextual Payloads**: Automatically selects payloads based on detected context
 - **Verbose Output**: See exactly what's being injected with `-v`

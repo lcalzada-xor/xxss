@@ -1,7 +1,10 @@
 package analysis
 
 import (
+	"fmt"
+
 	"github.com/dop251/goja/ast"
+	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 )
 
 // Walk traverses the AST and analyzes nodes.
@@ -67,10 +70,59 @@ func (ctx *AnalysisContext) Walk(node ast.Node) {
 		}
 
 	case *ast.ObjectLiteral:
-		// Handle React sinks or other object properties
-		// For now just recurse
+		// Handle React dangerouslySetInnerHTML
 		for _, prop := range n.Value {
 			if keyed, ok := prop.(*ast.PropertyKeyed); ok {
+				// Get property name - can be Identifier or StringLiteral
+				var propName string
+				if id, ok := keyed.Key.(*ast.Identifier); ok {
+					propName = string(id.Name)
+				} else if str, ok := keyed.Key.(*ast.StringLiteral); ok {
+					propName = string(str.Value)
+				}
+
+				if propName == "dangerouslySetInnerHTML" {
+					// Check if value is an object with __html property
+					if objLit, ok := keyed.Value.(*ast.ObjectLiteral); ok {
+						for _, innerProp := range objLit.Value {
+							if innerKeyed, ok := innerProp.(*ast.PropertyKeyed); ok {
+								var innerPropName string
+								if innerId, ok := innerKeyed.Key.(*ast.Identifier); ok {
+									innerPropName = string(innerId.Name)
+								} else if innerStr, ok := innerKeyed.Key.(*ast.StringLiteral); ok {
+									innerPropName = string(innerStr.Value)
+								}
+
+								if innerPropName == "__html" {
+									// Check if __html value is tainted
+									if src, isSrc := ctx.isSource(innerKeyed.Value); isSrc {
+										lineNumber := ctx.Program.File.Position(int(n.Idx0())).Line
+										ctx.AddFinding(models.DOMFinding{
+											Source:      src,
+											Sink:        "dangerouslySetInnerHTML",
+											Line:        "AST Node",
+											LineNumber:  lineNumber,
+											Confidence:  "HIGH",
+											Description: fmt.Sprintf("React dangerouslySetInnerHTML with tainted value from '%s'", src),
+										})
+									} else if id, ok := innerKeyed.Value.(*ast.Identifier); ok {
+										if src, ok := ctx.LookupTaint(string(id.Name)); ok {
+											lineNumber := ctx.Program.File.Position(int(n.Idx0())).Line
+											ctx.AddFinding(models.DOMFinding{
+												Source:      src,
+												Sink:        "dangerouslySetInnerHTML",
+												Line:        "AST Node",
+												LineNumber:  lineNumber,
+												Confidence:  "HIGH",
+												Description: fmt.Sprintf("React dangerouslySetInnerHTML with tainted variable '%s' from '%s'", string(id.Name), src),
+											})
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 				recursiveWalk(keyed.Value)
 			}
 		}

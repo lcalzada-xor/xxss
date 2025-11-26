@@ -112,7 +112,13 @@ func resolveDot(node ast.Node) string {
 		if left != "" {
 			return left + "." + string(n.Identifier.Name)
 		}
+		// If left is complex (e.g. CallExpression) but resolveDot returned empty,
+		// we might still want to prepend a dot if we know it's a member access.
+		// However, adding CallExpression support below is better.
 		return string(n.Identifier.Name)
+	case *ast.CallExpression:
+		// Handle method chaining: $().html()
+		return resolveDot(n.Callee) + "()"
 	}
 	return ""
 }
