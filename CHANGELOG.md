@@ -1,5 +1,10 @@
 # Changelog
 
+## [v2.2.0] - 2025-11-27
+### Added
+- **mXSS Detection**: Added detection for `DOMPurify.sanitize` and `sanitizeHtml` to identify potential mutation XSS vectors.
+- **Dangling Markup**: Added unclosed `<img src='...` payloads for data exfiltration.
+
 ## [v2.0.1] - 2025-11-26
 ### Fixed
 - Fixed module path to include `/v2` suffix for Go module compatibility

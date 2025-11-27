@@ -43,6 +43,14 @@ func (s *Scanner) ScanRequest(ctx context.Context, config *models.RequestConfig)
 		return results, err
 	}
 
+	// Blind All Injection (if enabled)
+	if s.blindURL != "" {
+		for param := range params {
+			// Inject generic blind payloads into every body parameter
+			payloads.InjectBlindBody(s.client, s.headers, config, param, s.blindURL, params, s.logger.IsVerbose())
+		}
+	}
+
 	// 3. Scan Body Parameters
 	if config.Method == "POST" || config.Method == "PUT" || config.Method == "PATCH" {
 		for _, param := range reflectedParams {

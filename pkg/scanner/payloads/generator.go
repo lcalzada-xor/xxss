@@ -111,7 +111,7 @@ func GeneratePayload(context models.ReflectionContext, allowed []string) string 
 	}
 
 	// Fallback to static polyglot if dynamic generation fails
-	return GetPolyglot(context)
+	return "\"><script>alert(1)</script>"
 }
 
 // has checks if a string contains a substring (helper for internal logic if needed,

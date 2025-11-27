@@ -117,7 +117,7 @@ func main() {
 			"      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m\n" +
 			"    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m\n" +
 			"   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m\n" +
-			"           \x1b[38;5;141mv2.1.1\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
+			"           \x1b[38;5;141mv2.2.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
 
 		fmt.Fprint(os.Stderr, banner)
 		h := `
@@ -127,7 +127,7 @@ USAGE:
 SCANNING:
   -c,  --concurrency int     Number of concurrent workers (default 40)
   -t,  --timeout duration    Request timeout (default 10s)
-  -x,  --proxy string        Proxy URL (e.g. http://127.0.0.1:8080)
+  -x,  --proxy string        Proxy URL (default http://127.0.0.1:8080 if flag is present without value)
   -H,  --header string       Custom header (e.g. 'Cookie: session=123')
 
 REQUEST CONFIGURATION:
@@ -162,6 +162,24 @@ EXAMPLES:
   echo "http://example.com" | xxss --scan-headers -v
 `
 		fmt.Fprint(os.Stderr, h)
+	}
+
+	// Handle default value for -x/--proxy if provided without argument
+	// This must be done before flag.Parse()
+	args := os.Args[1:]
+	for i, arg := range args {
+		if arg == "-x" || arg == "--proxy" {
+			// Check if next arg is missing or starts with -
+			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
+				// Insert default proxy
+				newArgs := make([]string, 0, len(os.Args)+1)
+				newArgs = append(newArgs, os.Args[:i+2]...)
+				newArgs = append(newArgs, "http://127.0.0.1:8080")
+				newArgs = append(newArgs, os.Args[i+2:]...)
+				os.Args = newArgs
+			}
+			break
+		}
 	}
 
 	flag.Parse()
@@ -263,7 +281,7 @@ EXAMPLES:
 		fmt.Fprintln(os.Stderr, "      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m")
 		fmt.Fprintln(os.Stderr, "    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m")
 		fmt.Fprintln(os.Stderr, "   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m")
-		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv2.0.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
+		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv2.2.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
 		fmt.Fprintln(os.Stderr, "")
 		if verboseLevel >= 1 {
 			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", concurrency)

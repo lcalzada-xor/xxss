@@ -160,6 +160,17 @@ func (s *Scanner) Scan(ctx context.Context, targetURL string) ([]models.Result, 
 		return results, err
 	}
 
+	// Blind All Injection (if enabled)
+	if s.blindURL != "" {
+		u, err := url.Parse(targetURL)
+		if err == nil {
+			for param := range u.Query() {
+				// Inject generic blind payloads into every parameter
+				payloads.InjectBlind(s.client, s.headers, targetURL, param, s.blindURL, s.logger.IsVerbose())
+			}
+		}
+	}
+
 	if len(reflectedParams) == 0 {
 		return results, nil
 	}
