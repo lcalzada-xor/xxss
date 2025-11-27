@@ -59,7 +59,7 @@ func TestGeneratePayload(t *testing.T) {
 			name:     "Fallback to Polyglot",
 			context:  models.ContextHTML,
 			allowed:  []string{}, // Nothing allowed
-			expected: GetPolyglot(models.ContextHTML),
+			expected: "\"><script>alert(1)</script>",
 		},
 	}
 
