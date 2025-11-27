@@ -74,6 +74,7 @@ func (ctx *AnalysisContext) checkCallSink(n *ast.CallExpression) {
 					LineNumber:  lineNumber,
 					Confidence:  "HIGH",
 					Description: fmt.Sprintf("Direct flow: Source '%s' flows into Sink '%s'", src, calleeName),
+					Evidence:    ctx.GetSnippet(n),
 				})
 			} else if id, ok := arg.(*ast.Identifier); ok {
 				if src, ok := ctx.LookupTaint(string(id.Name)); ok {
@@ -86,6 +87,7 @@ func (ctx *AnalysisContext) checkCallSink(n *ast.CallExpression) {
 						LineNumber:  lineNumber,
 						Confidence:  "HIGH",
 						Description: fmt.Sprintf("Tainted variable '%s' (from %s) flows into Sink '%s'", string(id.Name), src, calleeName),
+						Evidence:    ctx.GetSnippet(n),
 					})
 				}
 			} else if dot, ok := arg.(*ast.DotExpression); ok {
@@ -100,6 +102,7 @@ func (ctx *AnalysisContext) checkCallSink(n *ast.CallExpression) {
 							LineNumber:  lineNumber,
 							Confidence:  "HIGH",
 							Description: fmt.Sprintf("Tainted variable '%s' (property of %s) flows into Sink '%s'", string(dot.Identifier.Name), src, calleeName),
+							Evidence:    ctx.GetSnippet(n),
 						})
 					}
 				}

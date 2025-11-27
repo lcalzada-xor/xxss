@@ -67,4 +67,5 @@ type DOMFinding struct {
 	LineNumber  int    `json:"line_number"`
 	Confidence  string `json:"confidence"` // "HIGH", "MEDIUM", "LOW"
 	Description string `json:"description"`
+	Evidence    string `json:"evidence,omitempty"` // Code snippet or proof
 }

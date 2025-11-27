@@ -23,7 +23,7 @@ func AnalyzeJS(jsCode string, sources, sinks []*regexp.Regexp, logger *logger.Lo
 	}
 
 	// Initialize Analysis Context
-	ctx := NewAnalysisContext(program, sources, sinks, logger)
+	ctx := NewAnalysisContext(program, jsCode, sources, sinks, logger)
 
 	// TWO-PASS ANALYSIS for interprocedural taint tracking
 
@@ -199,7 +199,13 @@ func extractGlobals(program *ast.Program, globals map[string]bool) {
 			}
 		case *ast.DotExpression:
 			globalWalk(n.Left)
-			// Right side (Identifier) is a property, not a variable access
+			// Check for window.property or self.property
+			if id, ok := n.Left.(*ast.Identifier); ok {
+				objName := string(id.Name)
+				if objName == "window" || objName == "self" || objName == "top" || objName == "parent" {
+					globals[string(n.Identifier.Name)] = true
+				}
+			}
 		case *ast.BracketExpression:
 			globalWalk(n.Left)
 			globalWalk(n.Member)

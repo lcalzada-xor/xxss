@@ -102,7 +102,7 @@ func (ctx *AnalysisContext) HandleAssignExpression(n *ast.AssignExpression) {
 		}
 
 		ctx.Logger.VV("DOM: Detected sink assignment to '%s'", leftName)
-		ctx.reportSinkFlow(leftName, n.Right, int(n.Idx0()))
+		ctx.reportSinkFlow(leftName, n.Right, n)
 	}
 }
 
@@ -132,8 +132,8 @@ func (ctx *AnalysisContext) isSafeNavigation(n *ast.AssignExpression) bool {
 	return false
 }
 
-func (ctx *AnalysisContext) reportSinkFlow(sinkName string, rhs ast.Expression, idx int) {
-	lineNumber := ctx.Program.File.Position(idx).Line
+func (ctx *AnalysisContext) reportSinkFlow(sinkName string, rhs ast.Expression, node ast.Node) {
+	lineNumber := ctx.Program.File.Position(int(node.Idx0())).Line
 
 	if src, isSrc := ctx.isSource(rhs); isSrc {
 		ctx.Logger.VV("DOM: SINK DETECTED! %s = %s (line %d)", sinkName, src, lineNumber)
@@ -144,6 +144,7 @@ func (ctx *AnalysisContext) reportSinkFlow(sinkName string, rhs ast.Expression, 
 			LineNumber:  lineNumber,
 			Confidence:  "HIGH",
 			Description: fmt.Sprintf("Direct flow: Source '%s' flows into Sink '%s'", src, sinkName),
+			Evidence:    ctx.GetSnippet(node),
 		})
 	} else if id, ok := rhs.(*ast.Identifier); ok {
 		if src, ok := ctx.LookupTaint(string(id.Name)); ok {
@@ -155,6 +156,7 @@ func (ctx *AnalysisContext) reportSinkFlow(sinkName string, rhs ast.Expression, 
 				LineNumber:  lineNumber,
 				Confidence:  "HIGH",
 				Description: fmt.Sprintf("Tainted variable '%s' (from %s) flows into Sink '%s'", string(id.Name), src, sinkName),
+				Evidence:    ctx.GetSnippet(node),
 			})
 		}
 	} else if dot, ok := rhs.(*ast.DotExpression); ok {
@@ -168,6 +170,7 @@ func (ctx *AnalysisContext) reportSinkFlow(sinkName string, rhs ast.Expression, 
 					LineNumber:  lineNumber,
 					Confidence:  "HIGH",
 					Description: fmt.Sprintf("Tainted variable '%s' (property of %s) flows into Sink '%s'", string(dot.Identifier.Name), src, sinkName),
+					Evidence:    ctx.GetSnippet(node),
 				})
 			}
 		}

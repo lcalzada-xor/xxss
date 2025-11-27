@@ -117,7 +117,7 @@ func main() {
 			"      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m\n" +
 			"    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m\n" +
 			"   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m\n" +
-			"           \x1b[38;5;141mv2.2.1\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
+			"           \x1b[38;5;141mv2.3.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
 
 		fmt.Fprint(os.Stderr, banner)
 		h := `
@@ -281,7 +281,7 @@ EXAMPLES:
 		fmt.Fprintln(os.Stderr, "      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m")
 		fmt.Fprintln(os.Stderr, "    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m")
 		fmt.Fprintln(os.Stderr, "   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m")
-		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv2.2.1\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
+		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv2.3.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
 		fmt.Fprintln(os.Stderr, "")
 		if verboseLevel >= 1 {
 			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", concurrency)
@@ -353,36 +353,23 @@ EXAMPLES:
 					// 1. Scan GET parameters (default)
 					if method == "GET" || method == "" {
 						sc.ResetRequestCount()
-						// Wait, if I change main.go to call Scan(ctx, url) it will break compilation until I update scanner.go.
-						// I should update scanner.go FIRST or use multi_replace to update both?
-						// I can't update multiple files with replace_file_content.
-						// I should update scanner.go first.
-						// But I already started editing main.go in this thought process.
-						// I will cancel this edit and update scanner.go first?
-						// No, I can just leave Scan(url) and rely on the loop check for now,
-						// but for true cancellation I need to pass context.
-						// Let's look at how to do this properly.
-						// I'll update main.go to use `sc.Scan(ctx, url)` and `sc.ScanRequest(ctx, config)`
-						// AND update `scanner.go` in the next step.
-						// This will cause a temporary compilation error if I run tests in between.
-						// That's fine as long as I fix it quickly.
-						// actually, let's check imports.
-						// I need to import "context", "os/signal", "syscall".
-
 						results, err := sc.Scan(ctx, url)
+
+						// Always count requests, even on error
+						reqCount := sc.GetRequestCount()
+						urlRequests += reqCount
+						statsMutex.Lock()
+						totalRequests += reqCount
+						statsMutex.Unlock()
+
 						if err != nil {
-							if verboseLevel >= 1 && !silent {
+							if !silent {
 								// Don't log error if it's just context canceled
 								if err != context.Canceled {
 									fmt.Fprintf(os.Stderr, "[!] Error scanning GET %s: %v\n", url, err)
 								}
 							}
 						} else {
-							reqCount := sc.GetRequestCount()
-							urlRequests += reqCount
-							statsMutex.Lock()
-							totalRequests += reqCount
-							statsMutex.Unlock()
 							allResults = append(allResults, results...)
 						}
 					}
@@ -397,18 +384,21 @@ EXAMPLES:
 							ContentType: models.ContentType(contentType),
 						}
 						results, err := sc.ScanRequest(ctx, config)
+
+						// Always count requests, even on error
+						reqCount := sc.GetRequestCount()
+						urlRequests += reqCount
+						statsMutex.Lock()
+						totalRequests += reqCount
+						statsMutex.Unlock()
+
 						if err != nil {
-							if verboseLevel >= 1 && !silent {
+							if !silent {
 								if err != context.Canceled {
 									fmt.Fprintf(os.Stderr, "[!] Error scanning %s body: %v\n", method, err)
 								}
 							}
 						} else {
-							reqCount := sc.GetRequestCount()
-							urlRequests += reqCount
-							statsMutex.Lock()
-							totalRequests += reqCount
-							statsMutex.Unlock()
 							allResults = append(allResults, results...)
 						}
 					}
@@ -433,15 +423,17 @@ EXAMPLES:
 							}
 
 							result, err := sc.ScanHeader(ctx, url, header)
-							if err != nil {
-								continue
-							}
 
+							// Always count requests
 							reqCount := sc.GetRequestCount()
 							urlRequests += reqCount
 							statsMutex.Lock()
 							totalRequests += reqCount
 							statsMutex.Unlock()
+
+							if err != nil {
+								continue
+							}
 
 							if len(result.Unfiltered) > 0 {
 								allResults = append(allResults, result)

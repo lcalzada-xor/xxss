@@ -104,6 +104,7 @@ func (ctx *AnalysisContext) Walk(node ast.Node) {
 											LineNumber:  lineNumber,
 											Confidence:  "HIGH",
 											Description: fmt.Sprintf("React dangerouslySetInnerHTML with tainted value from '%s'", src),
+											Evidence:    ctx.GetSnippet(n),
 										})
 									} else if id, ok := innerKeyed.Value.(*ast.Identifier); ok {
 										if src, ok := ctx.LookupTaint(string(id.Name)); ok {
@@ -115,6 +116,7 @@ func (ctx *AnalysisContext) Walk(node ast.Node) {
 												LineNumber:  lineNumber,
 												Confidence:  "HIGH",
 												Description: fmt.Sprintf("React dangerouslySetInnerHTML with tainted variable '%s' from '%s'", string(id.Name), src),
+												Evidence:    ctx.GetSnippet(n),
 											})
 										}
 									}
@@ -145,6 +147,10 @@ func (ctx *AnalysisContext) Walk(node ast.Node) {
 	case *ast.ReturnStatement:
 		recursiveWalk(n.Argument)
 	case *ast.VariableStatement:
+		for _, expr := range n.List {
+			recursiveWalk(expr)
+		}
+	case *ast.LexicalDeclaration:
 		for _, expr := range n.List {
 			recursiveWalk(expr)
 		}

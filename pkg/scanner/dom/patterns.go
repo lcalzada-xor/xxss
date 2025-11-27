@@ -62,7 +62,4 @@ var sinkPatterns = []string{
 	`\$sce\.trustAsHtml\(`,
 	// React Sinks
 	`dangerouslySetInnerHTML`,
-	// Sanitization / mXSS
-	`DOMPurify\.sanitize\(`,
-	`sanitizeHtml\(`,
 }

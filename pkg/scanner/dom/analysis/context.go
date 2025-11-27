@@ -17,10 +17,11 @@ type AnalysisContext struct {
 	TaintedCalls map[string]map[int]string
 	Findings     []models.DOMFinding
 	Logger       *logger.Logger
+	SourceCode   string
 }
 
 // NewAnalysisContext creates a new context.
-func NewAnalysisContext(program *ast.Program, sources, sinks []*regexp.Regexp, logger *logger.Logger) *AnalysisContext {
+func NewAnalysisContext(program *ast.Program, jsCode string, sources, sinks []*regexp.Regexp, logger *logger.Logger) *AnalysisContext {
 	return &AnalysisContext{
 		Sources:      sources,
 		Sinks:        sinks,
@@ -28,6 +29,7 @@ func NewAnalysisContext(program *ast.Program, sources, sinks []*regexp.Regexp, l
 		Scopes:       []map[string]string{make(map[string]string)}, // Global scope
 		TaintedCalls: make(map[string]map[int]string),
 		Logger:       logger,
+		SourceCode:   jsCode,
 	}
 }
 
@@ -63,4 +65,25 @@ func (ctx *AnalysisContext) LookupTaint(name string) (string, bool) {
 // AddFinding adds a finding to the list.
 func (ctx *AnalysisContext) AddFinding(finding models.DOMFinding) {
 	ctx.Findings = append(ctx.Findings, finding)
+}
+
+// GetSnippet extracts the source code for a given AST node.
+func (ctx *AnalysisContext) GetSnippet(node ast.Node) string {
+	if node == nil {
+		return ""
+	}
+	start := int(node.Idx0()) - 1
+	end := int(node.Idx1()) - 1
+
+	if start < 0 {
+		start = 0
+	}
+	if end > len(ctx.SourceCode) {
+		end = len(ctx.SourceCode)
+	}
+	if start >= end {
+		return ""
+	}
+
+	return ctx.SourceCode[start:end]
 }

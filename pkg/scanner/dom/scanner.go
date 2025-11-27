@@ -104,6 +104,7 @@ func (ds *DOMScanner) ScanDOM(body string) []models.DOMFinding {
 						LineNumber:  0, // Hard to get line number with regex
 						Confidence:  "HIGH",
 						Description: fmt.Sprintf("Framework directive '%s' assigned with source '%s'", directive, value),
+						Evidence:    match[0],
 					})
 				}
 			}
@@ -154,6 +155,7 @@ func (ds *DOMScanner) ScanDOM(body string) []models.DOMFinding {
 				LineNumber:  0,
 				Confidence:  "HIGH",
 				Description: fmt.Sprintf("Dangerous 'javascript:' protocol usage in '%s' attribute", attr),
+				Evidence:    match[0],
 			})
 			// Also analyze the code inside
 			jsCodeBlocks = append(jsCodeBlocks, code)
@@ -201,35 +203,16 @@ func (ds *DOMScanner) ScanDOM(body string) []models.DOMFinding {
 			// Check if this ID/Name is actually accessed as a global variable in JS
 			isAccessed := allGlobalAccesses[val]
 
-			// Fallback: Check sensitive list if not explicitly accessed (for robustness)
-			sensitiveVars := []string{"config", "debug", "user", "auth", "admin", "role", "state"}
-			isSensitive := false
-			for _, sensitive := range sensitiveVars {
-				if strings.Contains(strings.ToLower(val), sensitive) {
-					isSensitive = true
-					break
-				}
-			}
-
 			if isAccessed {
 				ds.logger.VV("DOM: CONFIRMED DOM Clobbering target: %s=%s (accessed in JS)", attr, val)
 				findings = append(findings, models.DOMFinding{
 					Source:      "HTML Attribute",
 					Sink:        "Global Variable Clobbering",
 					Line:        "HTML Attribute",
-					LineNumber:  0,
+					LineNumber:  0, // Hard to get line number with regex
 					Confidence:  "HIGH",
 					Description: fmt.Sprintf("DOM Clobbering: Element with %s='%s' shadows a global variable accessed in JS", attr, val),
-				})
-			} else if isSensitive {
-				ds.logger.VV("DOM: Potential DOM Clobbering target (Sensitive Name): %s=%s", attr, val)
-				findings = append(findings, models.DOMFinding{
-					Source:      "HTML Attribute",
-					Sink:        "Global Variable Clobbering",
-					Line:        "HTML Attribute",
-					LineNumber:  0,
-					Confidence:  "MEDIUM",
-					Description: fmt.Sprintf("Potential DOM Clobbering: Element with %s='%s' may shadow global variable", attr, val),
+					Evidence:    match[0],
 				})
 			} else {
 				ds.logger.VV("DOM: Ignoring unused ID/Name for clobbering: %s", val)
@@ -237,7 +220,24 @@ func (ds *DOMScanner) ScanDOM(body string) []models.DOMFinding {
 		}
 	}
 
-	return findings
+	return deduplicateFindings(findings)
+}
+
+// deduplicateFindings removes duplicate findings based on Source, Sink, and Description
+func deduplicateFindings(findings []models.DOMFinding) []models.DOMFinding {
+	unique := make([]models.DOMFinding, 0, len(findings))
+	seen := make(map[string]bool)
+
+	for _, f := range findings {
+		// Create a unique key for the finding
+		key := fmt.Sprintf("%s|%s|%s", f.Source, f.Sink, f.Description)
+		if !seen[key] {
+			seen[key] = true
+			unique = append(unique, f)
+		}
+	}
+
+	return unique
 }
 
 // ScanDeepDOM fetches external scripts and analyzes them concurrently.
@@ -309,7 +309,7 @@ func (ds *DOMScanner) ScanDeepDOM(targetURL string, body string, client *http.Cl
 	}
 
 	wg.Wait()
-	return findings
+	return deduplicateFindings(findings)
 }
 
 func resolveURL(baseURL, scriptPath string) string {

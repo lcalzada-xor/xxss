@@ -87,7 +87,7 @@ func TestDOMScanner_ScanDOM(t *testing.T) {
 		},
 		{
 			name:     "Prototype Pollution: Bracket notation",
-			body:     "<script>\nvar obj = {};\nobj['prototype'].polluted = true;\n</script>",
+			body:     "<script>\nvar obj = {};\nobj['__proto__'].polluted = true;\n</script>",
 			expected: 1,
 		},
 	}

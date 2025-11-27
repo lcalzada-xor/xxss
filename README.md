@@ -64,8 +64,8 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
 ### DOM-based XSS (v2.0 Engine)
 - **Source -> Sink Flows**: Tracks tainted data from sources (e.g., `location.search`) to dangerous sinks (e.g., `innerHTML`).
 - **Protocol Injection**: Detects `javascript:` pseudo-protocol usage in `href`/`src` attributes.
-- **DOM Clobbering**: Identifies attempts to shadow global variables via HTML attributes.
-- **Prototype Pollution**: Detects assignments to `__proto__`, `prototype`, or `constructor`.
+- **DOM Clobbering**: Identifies attempts to shadow global variables via HTML attributes. **(New in v2.3.0: Reduced False Positives)**
+- **Prototype Pollution**: Detects assignments to `__proto__`, `prototype`, or `constructor`. **(New in v2.3.0: Improved Accuracy)**
 - **Framework Specifics**: Checks for React's `dangerouslySetInnerHTML` and Angular's `v-html` / `ng-bind-html`.
 - **Web Workers**: Detects dangerous `importScripts` calls.
 
