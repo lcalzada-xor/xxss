@@ -56,6 +56,7 @@ type Result struct {
 	SecurityHeaders  SecurityHeaders   `json:"security_headers,omitempty"`
 	Exploitable      bool              `json:"exploitable"`
 	SuggestedPayload string            `json:"suggested_payload,omitempty"`
+	Technologies     []string          `json:"technologies,omitempty"`
 	DOMFindings      []DOMFinding      `json:"dom_findings,omitempty"`
 }
 

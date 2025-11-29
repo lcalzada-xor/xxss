@@ -1,0 +1,148 @@
+[
+    {
+        "name": "React",
+        "file_patterns": [
+            "react(?:-dom)?(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "react(?:-dom)?\\.production\\.min\\.js",
+            "react-with-addons(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "react-scripts"
+        ],
+        "content_patterns": [
+            "React v([\\d\\.]+)",
+            "__REACT_DEVTOOLS_GLOBAL_HOOK__",
+            "data-reactid",
+            "data-reactroot"
+        ]
+    },
+    {
+        "name": "Vue.js",
+        "file_patterns": [
+            "vue(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "vue\\.min\\.js",
+            "vue-router(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "vuex(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js"
+        ],
+        "content_patterns": [
+            "Vue\\.js v([\\d\\.]+)",
+            "__VUE_DEVTOOLS_GLOBAL_HOOK__",
+            "data-v-"
+        ]
+    },
+    {
+        "name": "jQuery",
+        "file_patterns": [
+            "jquery(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "jquery\\.min\\.js",
+            "jquery-([\\d\\.]+)(?:\\.min)?\\.js"
+        ],
+        "content_patterns": [
+            "jQuery v([\\d\\.]+)",
+            "jquery:\\s*['\"]([\\d\\.]+)['\"]",
+            "fn\\.jquery"
+        ]
+    },
+    {
+        "name": "Bootstrap",
+        "file_patterns": [
+            "bootstrap(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "bootstrap\\.min\\.js",
+            "bootstrap\\.bundle(?:\\.min)?\\.js"
+        ],
+        "content_patterns": [
+            "Bootstrap v([\\d\\.]+)"
+        ]
+    },
+    {
+        "name": "AngularJS",
+        "file_patterns": [
+            "angular(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "angular\\.min\\.js",
+            "angular\\.js"
+        ],
+        "content_patterns": [
+            "angular\\.version",
+            "\\bng-version\\b",
+            "\\bng-app\\b",
+            "\\bdata-ng-app\\b",
+            "\\bx-ng-app\\b",
+            "\\bng-controller\\b"
+        ]
+    },
+    {
+        "name": "Next.js",
+        "file_patterns": [
+            "_next/static"
+        ],
+        "content_patterns": [
+            "__NEXT_DATA__",
+            "__next"
+        ]
+    },
+    {
+        "name": "Nuxt.js",
+        "file_patterns": [
+            "_nuxt"
+        ],
+        "content_patterns": [
+            "__NUXT__",
+            "__nuxt",
+            "version:[\"']([\\d\\.]+)[\"']"
+        ]
+    },
+    {
+        "name": "Svelte",
+        "file_patterns": [
+            "svelte(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js"
+        ],
+        "content_patterns": [
+            "__svelte",
+            "svelte-([\\d\\.]+)",
+            "version:[\"']([\\d\\.]+)[\"']"
+        ]
+    },
+    {
+        "name": "Backbone.js",
+        "file_patterns": [
+            "backbone(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "backbone\\.min\\.js"
+        ],
+        "content_patterns": [
+            "Backbone\\.js ([\\d\\.]+)",
+            "Backbone\\.VERSION"
+        ]
+    },
+    {
+        "name": "Ember.js",
+        "file_patterns": [
+            "ember(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "ember\\.min\\.js"
+        ],
+        "content_patterns": [
+            "Ember\\.VERSION"
+        ]
+    },
+    {
+        "name": "Lodash",
+        "file_patterns": [
+            "lodash(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "lodash@([\\d\\.]+)",
+            "lodash\\.min\\.js"
+        ],
+        "content_patterns": [
+            "lodash\\.VERSION",
+            "lodash\\.VERSION = ['\"]([\\d\\.]+)['\"]"
+        ]
+    },
+    {
+        "name": "Underscore.js",
+        "file_patterns": [
+            "underscore(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "underscore\\.min\\.js",
+            "underscore-umd\\.js"
+        ],
+        "content_patterns": [
+            "_.VERSION",
+            "var VERSION = ['\"]([\\d\\.]+)['\"]"
+        ]
+    }
+]

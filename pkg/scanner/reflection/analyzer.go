@@ -8,7 +8,7 @@ import (
 // Expanded list to catch XSS without quotes and other edge cases.
 var SpecialChars = []string{
 	"\"", "'", "<", ">", "$", "|", "(", ")", "`", ":", ";", "{", "}",
-	"&", "#", "=", "/", " ", "\t", "%", "\\",
+	"&", "#", "=", "/", " ", "\t", "%", "\\", ".", "[", "]", "+", "-", "*",
 }
 
 // htmlEncodings maps special characters to their HTML entity equivalents

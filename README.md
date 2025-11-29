@@ -38,6 +38,9 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
     - **Verbose Output**: See exactly what's being injected
   - **Security Headers**: Analyzes CSP and other headers to determine exploitability
   - **HTML Encoding Detection**: Identifies when special characters are encoded
+- **Library Detection**:
+  - **Signature-Based**: Identifies 15+ libraries (React, Vue, Angular, jQuery, Bootstrap, etc.)
+  - **Fast Mode**: Use `-dt` to detect technologies without running a full XSS scan
 - **Comprehensive Scanning**:
   - **GET/POST/PUT/PATCH**: Support for various HTTP methods
   - **Header Injection**: Scans HTTP headers (User-Agent, Referer, etc.) for XSS
@@ -97,6 +100,8 @@ go install github.com/lcalzada-xor/xxss/v2/cmd/xxss@latest
 | `--scan-headers` | `-sh` | Scan HTTP headers for XSS | `false` |
 | `--headers-list` | `-hl` | Headers to scan (comma-separated) | `User-Agent,Referer,X-Forwarded-For,X-Real-IP,X-Forwarded-Host,X-Original-URL,Accept-Language` |
 | `--output` | `-o` | Output format: url, human, json | `url` |
+| `--deep-dom` | | Enable Deep DOM XSS scanning (fetch external JS) | `false` |
+| `--detect-libraries` | `-dt` | Detect technologies only (no XSS scan) | `false` |
 
 ## 💡 Examples
 
@@ -174,6 +179,12 @@ echo "http://example.com/api/user" | xxss -X POST -d '{"name":"test","email":"te
 Get detailed findings with context and suggested payloads.
 ```bash
 echo "http://testphp.vulnweb.com/listproducts.php?cat=1" | xxss -o human
+```
+
+### 10. Library Detection
+Identify technologies used on a target (React, Vue, jQuery, etc.) without scanning for XSS.
+```bash
+echo "http://example.com" | xxss -dt -o human
 ```
 
 ## 📝 Output Format

@@ -18,14 +18,14 @@ func TestWAFDetection(t *testing.T) {
 			headers: http.Header{
 				"Server": []string{"cloudflare"},
 			},
-			expected: "Cloudflare",
+			expected: "Cloudflare WAF",
 		},
 		{
 			name: "Cloudflare via CF-Ray",
 			headers: http.Header{
 				"Cf-Ray": []string{"123456789-SJC"},
 			},
-			expected: "Cloudflare",
+			expected: "Cloudflare WAF",
 		},
 		{
 			name: "AWS WAF",
@@ -39,14 +39,14 @@ func TestWAFDetection(t *testing.T) {
 			headers: http.Header{
 				"X-Akamai-Transformed": []string{"9 12345"},
 			},
-			expected: "Akamai",
+			expected: "Akamai WAF",
 		},
 		{
 			name: "Imperva",
 			headers: http.Header{
 				"X-Iinfo": []string{"1-123456"},
 			},
-			expected: "Imperva",
+			expected: "Incapsula WAF",
 		},
 		{
 			name: "ModSecurity",
@@ -67,14 +67,14 @@ func TestWAFDetection(t *testing.T) {
 			headers: http.Header{
 				"X-Sucuri-Id": []string{"12345"},
 			},
-			expected: "Sucuri",
+			expected: "Sucuri WAF",
 		},
 		{
 			name: "Barracuda",
 			headers: http.Header{
 				"Server": []string{"Barracuda WAF"},
 			},
-			expected: "Barracuda",
+			expected: "Barracuda WAF",
 		},
 		{
 			name: "No WAF detected",
@@ -87,9 +87,9 @@ func TestWAFDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			waf := security.DetectWAF(tt.headers)
+			waf := security.Detect(tt.headers, "")
 			if waf.Name != tt.expected {
-				t.Errorf("DetectWAF() = %v, want %v", waf.Name, tt.expected)
+				t.Errorf("Detect() = %v, want %v", waf.Name, tt.expected)
 			}
 			if tt.expected != "" && !waf.Detected {
 				t.Errorf("WAF should be detected but Detected = false")

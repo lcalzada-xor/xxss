@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.4.0] - 2025-11-29
+
+### Added
+- **Library Detection Engine**: New `-dt` / `--detect-libraries` flag to identify JavaScript libraries (React, Vue, Angular, jQuery, etc.) without performing XSS scans.
+- **Refactoring**: Major codebase restructuring for better modularity and maintainability.
+  - Split `Scanner` into specialized components (`ReflectedScanner`, `BlindScanner`, `DOMScanner`).
+  - Extracted entry point logic into `pkg/runner`.
+
+### Changed
+- **Performance**: Optimized technology detection using a new signature-based engine.
+
 ## [v2.3.0] - 2025-11-27
 
 ### Added

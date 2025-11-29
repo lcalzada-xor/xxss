@@ -10,7 +10,7 @@ import (
 )
 
 // HandleAssignExpression checks assignments for sinks and taint propagation.
-func (ctx *AnalysisContext) HandleAssignExpression(n *ast.AssignExpression) {
+func (ctx *AnalysisContext) HandleAssignExpression(n *ast.AssignExpression, walker func(ast.Node)) {
 	ctx.Logger.VV("DOM: Visiting AssignExpression")
 
 	// 1. Taint Propagation (x = ...)
@@ -61,6 +61,57 @@ func (ctx *AnalysisContext) HandleAssignExpression(n *ast.AssignExpression) {
 							}
 						}
 					}
+				}
+			}
+		}
+	}
+
+	// Taint Propagation to 'this' in callbacks (e.g. xhr.onreadystatechange = function() { ... })
+	if dot, ok := n.Left.(*ast.DotExpression); ok {
+		if objIdent, ok := dot.Left.(*ast.Identifier); ok {
+			if src, ok := ctx.LookupTaint(string(objIdent.Name)); ok {
+				// We are assigning to a property of a tainted object
+				// Check if RHS is a function
+				var funcBody ast.ConciseBody
+				switch fn := n.Right.(type) {
+				case *ast.FunctionLiteral:
+					funcBody = fn.Body
+				}
+
+				if funcBody != nil {
+					// We found a function assigned to a tainted object's property
+					// We need to taint 'this' inside that function
+					// But we can't easily inject into the scope *before* walking the body because
+					// the walker handles the scope push/pop for FunctionLiteral.
+					// However, we can add a special "TaintedThis" map to the context or handle it in the Walker.
+					// OR, simpler: we can manually walk the body with a new scope here?
+					// No, that would duplicate walking.
+
+					// Better approach:
+					// Store this "pending taint" in the context and apply it when visiting the function.
+					// But we don't have a map from FunctionLiteral to Taint.
+
+					// Alternative:
+					// Since we are in HandleAssignExpression, and the walker will recurse into n.Right (the function),
+					// we can set a flag or add to a map keyed by the function node address? No, pointers change? No.
+					// Let's use a map in Context: TaintedThisFunctions map[*ast.FunctionLiteral]string
+					if fn, ok := n.Right.(*ast.FunctionLiteral); ok {
+						if ctx.TaintedThisFunctions == nil {
+							ctx.TaintedThisFunctions = make(map[*ast.FunctionLiteral]string)
+						}
+						ctx.TaintedThisFunctions[fn] = src
+						ctx.Logger.VV("DOM: Tainting 'this' in callback assigned to '%s.%s' with source '%s' (Func Ptr: %p)", string(objIdent.Name), string(dot.Identifier.Name), src, fn)
+					}
+				}
+			} else {
+				// Object is NOT tainted yet. Register as pending callback.
+				if fn, ok := n.Right.(*ast.FunctionLiteral); ok {
+					objName := string(objIdent.Name)
+					if ctx.PendingCallbacks[objName] == nil {
+						ctx.PendingCallbacks[objName] = []*ast.FunctionLiteral{}
+					}
+					ctx.PendingCallbacks[objName] = append(ctx.PendingCallbacks[objName], fn)
+					ctx.Logger.VV("DOM: Registered pending callback for '%s' (Func Ptr: %p)", objName, fn)
 				}
 			}
 		}

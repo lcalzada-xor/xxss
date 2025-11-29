@@ -21,8 +21,30 @@ func (ctx *AnalysisContext) Walk(node ast.Node) {
 	}
 
 	switch n := node.(type) {
+	case *ast.ArrowFunctionLiteral:
+		ctx.PushScope()
+		if params, ok := ctx.TaintedFunctionParams[n]; ok {
+			for param, src := range params {
+				ctx.CurrentScope()[param] = src
+				ctx.Logger.VV("DOM: Tainted param '%s' in arrow function scope with source '%s'", param, src)
+			}
+		}
+		recursiveWalk(n.Body)
+		ctx.PopScope()
+		return
+
 	case *ast.FunctionLiteral:
 		ctx.PushScope()
+		if taint, ok := ctx.TaintedThisFunctions[n]; ok {
+			ctx.CurrentScope()["this"] = taint
+			ctx.Logger.VV("DOM: Tainted 'this' in function scope with source '%s'", taint)
+		}
+		if params, ok := ctx.TaintedFunctionParams[n]; ok {
+			for param, src := range params {
+				ctx.CurrentScope()[param] = src
+				ctx.Logger.VV("DOM: Tainted param '%s' in function scope with source '%s'", param, src)
+			}
+		}
 		recursiveWalk(n.Body)
 		ctx.PopScope()
 		return
@@ -56,18 +78,18 @@ func (ctx *AnalysisContext) Walk(node ast.Node) {
 		}
 
 	case *ast.AssignExpression:
-		ctx.HandleAssignExpression(n)
+		ctx.HandleAssignExpression(n, recursiveWalk)
 		// Recurse
 		recursiveWalk(n.Left)
 		recursiveWalk(n.Right)
 
 	case *ast.CallExpression:
-		ctx.HandleCallExpression(n, recursiveWalk)
-		// Recurse args
+		// Recurse args first to resolve taint
 		recursiveWalk(n.Callee)
 		for _, arg := range n.ArgumentList {
 			recursiveWalk(arg)
 		}
+		ctx.HandleCallExpression(n, recursiveWalk)
 
 	case *ast.ObjectLiteral:
 		// Handle React dangerouslySetInnerHTML

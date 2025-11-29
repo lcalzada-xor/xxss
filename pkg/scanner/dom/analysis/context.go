@@ -10,26 +10,34 @@ import (
 
 // AnalysisContext holds the state for a single JS analysis run.
 type AnalysisContext struct {
-	Sources      []*regexp.Regexp
-	Sinks        []*regexp.Regexp
-	Program      *ast.Program
-	Scopes       []map[string]string
-	TaintedCalls map[string]map[int]string
-	Findings     []models.DOMFinding
-	Logger       *logger.Logger
-	SourceCode   string
+	Sources               []*regexp.Regexp
+	Sinks                 []*regexp.Regexp
+	Program               *ast.Program
+	Scopes                []map[string]string
+	TaintedCalls          map[string]map[int]string
+	Findings              []models.DOMFinding
+	Logger                *logger.Logger
+	SourceCode            string
+	TaintedThisFunctions  map[*ast.FunctionLiteral]string
+	PendingCallbacks      map[string][]*ast.FunctionLiteral
+	ExpressionTaint       map[ast.Expression]string
+	TaintedFunctionParams map[ast.Node]map[string]string
 }
 
 // NewAnalysisContext creates a new context.
 func NewAnalysisContext(program *ast.Program, jsCode string, sources, sinks []*regexp.Regexp, logger *logger.Logger) *AnalysisContext {
 	return &AnalysisContext{
-		Sources:      sources,
-		Sinks:        sinks,
-		Program:      program,
-		Scopes:       []map[string]string{make(map[string]string)}, // Global scope
-		TaintedCalls: make(map[string]map[int]string),
-		Logger:       logger,
-		SourceCode:   jsCode,
+		Sources:               sources,
+		Sinks:                 sinks,
+		Program:               program,
+		Scopes:                []map[string]string{make(map[string]string)}, // Global scope
+		TaintedCalls:          make(map[string]map[int]string),
+		TaintedThisFunctions:  make(map[*ast.FunctionLiteral]string),
+		PendingCallbacks:      make(map[string][]*ast.FunctionLiteral),
+		ExpressionTaint:       make(map[ast.Expression]string),
+		TaintedFunctionParams: make(map[ast.Node]map[string]string),
+		Logger:                logger,
+		SourceCode:            jsCode,
 	}
 }
 
@@ -86,4 +94,12 @@ func (ctx *AnalysisContext) GetSnippet(node ast.Node) string {
 	}
 
 	return ctx.SourceCode[start:end]
+}
+
+// AddTaintedParam registers a parameter to be tainted when visiting a function.
+func (ctx *AnalysisContext) AddTaintedParam(funcNode ast.Node, paramName, source string) {
+	if ctx.TaintedFunctionParams[funcNode] == nil {
+		ctx.TaintedFunctionParams[funcNode] = make(map[string]string)
+	}
+	ctx.TaintedFunctionParams[funcNode][paramName] = source
 }

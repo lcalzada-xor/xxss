@@ -65,7 +65,7 @@ func TestGeneratePayload(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := GeneratePayload(tc.context, tc.allowed)
+			result := GeneratePayload(tc.context, tc.allowed, nil)
 			if result != tc.expected {
 				t.Errorf("Expected payload '%s', got '%s'", tc.expected, result)
 			}

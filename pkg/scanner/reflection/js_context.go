@@ -15,35 +15,69 @@ func analyzeJavaScriptContext(context, probe string) (bool, models.ReflectionCon
 	}
 
 	// Check for inline event handlers (onclick, onload, etc.)
-	// Need to verify probe is INSIDE the event handler value, not after it
 	probeIndex := strings.Index(context, probe)
 	if probeIndex == -1 {
 		return false, models.ContextUnknown
 	}
 
 	before := context[:probeIndex]
-
-	// Look for event handler pattern before probe
-	eventPattern := regexp.MustCompile(`(?i)on\w+\s*=\s*["']?[^"'>]*$`)
-	if !eventPattern.MatchString(before) {
+	lastTagStart := strings.LastIndex(before, "<")
+	if lastTagStart == -1 {
 		return false, models.ContextUnknown
 	}
 
-	// Find last < and > to ensure we're in a tag
-	lastTagStart := strings.LastIndex(before, "<")
-	lastTagEnd := strings.LastIndex(before, ">")
-
-	if lastTagStart == -1 || lastTagEnd > lastTagStart {
-		return false, models.ContextUnknown // Not inside a tag
+	// Check if we are inside a tag (no closing > after <)
+	if strings.LastIndex(before, ">") > lastTagStart {
+		return false, models.ContextUnknown
 	}
 
-	// Count quotes to see if we're inside the event handler value
-	afterEvent := before[lastTagStart:]
-	doubleQuotes := strings.Count(afterEvent, "\"")
-	singleQuotes := strings.Count(afterEvent, "'")
+	tagContent := before[lastTagStart+1:]
 
-	// Odd number of quotes means we're inside
-	if (doubleQuotes%2 == 1) || (singleQuotes%2 == 1) {
+	// Parse attributes to find which one we are inside
+	var lastAttrName string
+	var buffer strings.Builder
+	inQuote := false
+	var quoteChar rune
+
+	for _, c := range tagContent {
+		if inQuote {
+			if rune(c) == quoteChar {
+				inQuote = false
+			}
+			continue
+		}
+
+		if c == '"' || c == '\'' {
+			inQuote = true
+			quoteChar = rune(c)
+			continue
+		}
+
+		if c == '=' {
+			name := strings.TrimSpace(buffer.String())
+			if name != "" {
+				lastAttrName = name
+			}
+			buffer.Reset()
+			continue
+		}
+
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+			if buffer.Len() > 0 {
+				name := strings.TrimSpace(buffer.String())
+				if name != "" {
+					lastAttrName = name
+				}
+				buffer.Reset()
+			}
+			continue
+		}
+
+		buffer.WriteRune(c)
+	}
+
+	// Check if the last attribute name starts with "on"
+	if strings.HasPrefix(strings.ToLower(lastAttrName), "on") {
 		return determineJSQuoteContext(context, probe)
 	}
 

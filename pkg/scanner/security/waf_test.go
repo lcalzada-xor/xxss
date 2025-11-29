@@ -2,43 +2,50 @@ package security
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
-func TestProbeWAF(t *testing.T) {
+func TestDetect(t *testing.T) {
 	tests := []struct {
 		name           string
-		responseStatus int
-		responseBody   string
+		headers        map[string]string
+		body           string
 		expectedWAF    string
 		expectDetected bool
 	}{
 		{
-			name:           "Cloudflare Block",
-			responseStatus: 403,
-			responseBody:   "<html>...cloudflare...</html>",
-			expectedWAF:    "Cloudflare (Active)",
+			name: "Cloudflare Header",
+			headers: map[string]string{
+				"Server": "cloudflare",
+			},
+			body:           "<html>...</html>",
+			expectedWAF:    "Cloudflare WAF",
 			expectDetected: true,
 		},
 		{
-			name:           "ModSecurity Block",
-			responseStatus: 406,
-			responseBody:   "Not Acceptable... mod_security ...",
-			expectedWAF:    "ModSecurity (Active)",
+			name: "Incapsula Body",
+			headers: map[string]string{
+				"Content-Type": "text/html",
+			},
+			body:           "<html>...Incapsula incident ID...</html>",
+			expectedWAF:    "Incapsula WAF",
 			expectDetected: true,
 		},
 		{
-			name:           "Generic Block",
-			responseStatus: 403,
-			responseBody:   "Access Denied",
-			expectedWAF:    "Generic WAF (Blocked Request)",
+			name: "AWS WAF Header",
+			headers: map[string]string{
+				"X-Amzn-RequestId": "12345",
+			},
+			body:           "<html>...</html>",
+			expectedWAF:    "AWS WAF",
 			expectDetected: true,
 		},
 		{
-			name:           "No Block",
-			responseStatus: 200,
-			responseBody:   "OK",
+			name: "No WAF",
+			headers: map[string]string{
+				"Server": "Apache",
+			},
+			body:           "<html>Hello World</html>",
 			expectedWAF:    "",
 			expectDetected: false,
 		},
@@ -46,18 +53,12 @@ func TestProbeWAF(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// Verify probe parameter is sent
-				if r.URL.Query().Get("waf_probe") != "<script>alert(1)</script>" {
-					t.Errorf("Expected waf_probe parameter")
-				}
-				w.WriteHeader(tc.responseStatus)
-				w.Write([]byte(tc.responseBody))
-			}))
-			defer server.Close()
+			header := http.Header{}
+			for k, v := range tc.headers {
+				header.Set(k, v)
+			}
 
-			client := server.Client()
-			waf := ProbeWAF(client, server.URL)
+			waf := Detect(header, tc.body)
 
 			if waf.Detected != tc.expectDetected {
 				t.Errorf("Expected Detected=%v, got %v", tc.expectDetected, waf.Detected)

@@ -34,6 +34,18 @@ func (ctx *AnalysisContext) containsSource(node ast.Expression) (string, bool) {
 				found = src
 				return
 			}
+			if id, ok := expr.(*ast.Identifier); ok {
+				if src, ok := ctx.LookupTaint(string(id.Name)); ok {
+					found = src
+					return
+				}
+			}
+			if _, ok := expr.(*ast.ThisExpression); ok {
+				if src, ok := ctx.LookupTaint("this"); ok {
+					found = src
+					return
+				}
+			}
 		}
 		// Recurse
 		switch t := n.(type) {
@@ -47,6 +59,16 @@ func (ctx *AnalysisContext) containsSource(node ast.Expression) (string, bool) {
 			}
 		case *ast.AssignExpression:
 			check(t.Right)
+		case *ast.NewExpression:
+			check(t.Callee)
+			for _, arg := range t.ArgumentList {
+				check(arg)
+			}
+		case *ast.DotExpression:
+			check(t.Left)
+		case *ast.BracketExpression:
+			check(t.Left)
+			check(t.Member)
 		}
 	}
 	check(node)

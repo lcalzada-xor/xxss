@@ -64,7 +64,7 @@ func (ctx *AnalysisContext) checkCallSink(n *ast.CallExpression) {
 
 	if isSink {
 		for _, arg := range n.ArgumentList {
-			if src, isSrc := ctx.isSource(arg); isSrc {
+			if src, isSrc := ctx.containsSource(arg); isSrc {
 				lineNumber := ctx.Program.File.Position(int(n.Idx0())).Line
 				ctx.Logger.VV("DOM: SINK DETECTED! %s() called with %s (line %d)", calleeName, src, lineNumber)
 				ctx.AddFinding(models.DOMFinding{

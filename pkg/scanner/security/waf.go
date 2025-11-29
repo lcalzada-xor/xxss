@@ -1,9 +1,7 @@
 package security
 
 import (
-	"io"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -13,18 +11,19 @@ type WAF struct {
 	Detected bool
 }
 
-// DetectWAF analyzes HTTP response headers to identify the presence of a WAF
-func DetectWAF(headers http.Header) *WAF {
+// Detect passively analyzes HTTP response headers and body to identify the presence of a WAF
+func Detect(headers http.Header, body string) *WAF {
+	// 1. Check Headers
 	for key, values := range headers {
 		keyLower := strings.ToLower(key)
 		valueLower := strings.ToLower(strings.Join(values, " "))
 
 		// Cloudflare
 		if keyLower == "server" && strings.Contains(valueLower, "cloudflare") {
-			return &WAF{Name: "Cloudflare", Detected: true}
+			return &WAF{Name: "Cloudflare WAF", Detected: true}
 		}
-		if keyLower == "cf-ray" || keyLower == "cf-cache-status" {
-			return &WAF{Name: "Cloudflare", Detected: true}
+		if keyLower == "cf-ray" || keyLower == "cf-cache-status" || keyLower == "__cf_bm" {
+			return &WAF{Name: "Cloudflare WAF", Detected: true}
 		}
 
 		// AWS WAF
@@ -37,18 +36,21 @@ func DetectWAF(headers http.Header) *WAF {
 
 		// Akamai
 		if keyLower == "x-akamai-transformed" || keyLower == "akamai-origin-hop" {
-			return &WAF{Name: "Akamai", Detected: true}
+			return &WAF{Name: "Akamai WAF", Detected: true}
 		}
 		if strings.Contains(valueLower, "akamai") {
-			return &WAF{Name: "Akamai", Detected: true}
+			return &WAF{Name: "Akamai WAF", Detected: true}
 		}
 
 		// Imperva/Incapsula
 		if keyLower == "x-iinfo" || keyLower == "x-cdn" && strings.Contains(valueLower, "incapsula") {
-			return &WAF{Name: "Imperva", Detected: true}
+			return &WAF{Name: "Incapsula WAF", Detected: true}
 		}
 		if strings.Contains(valueLower, "incapsula") || strings.Contains(valueLower, "imperva") {
-			return &WAF{Name: "Imperva", Detected: true}
+			return &WAF{Name: "Incapsula WAF", Detected: true}
+		}
+		if keyLower == "visid_incap" {
+			return &WAF{Name: "Incapsula WAF", Detected: true}
 		}
 
 		// ModSecurity
@@ -66,73 +68,48 @@ func DetectWAF(headers http.Header) *WAF {
 
 		// Sucuri
 		if keyLower == "x-sucuri-id" || keyLower == "x-sucuri-cache" {
-			return &WAF{Name: "Sucuri", Detected: true}
+			return &WAF{Name: "Sucuri WAF", Detected: true}
 		}
 		if strings.Contains(valueLower, "sucuri") {
-			return &WAF{Name: "Sucuri", Detected: true}
+			return &WAF{Name: "Sucuri WAF", Detected: true}
 		}
 
 		// Barracuda
 		if strings.Contains(valueLower, "barracuda") || keyLower == "barra-counter" {
-			return &WAF{Name: "Barracuda", Detected: true}
+			return &WAF{Name: "Barracuda WAF", Detected: true}
 		}
 	}
 
-	return &WAF{Name: "", Detected: false}
-}
-
-// ProbeWAF actively probes the target to detect WAFs by sending a suspicious request.
-// It returns a WAF struct if a block is detected.
-func ProbeWAF(client *http.Client, targetURL string) *WAF {
-	u, err := url.Parse(targetURL)
-	if err != nil {
-		return &WAF{Name: "", Detected: false}
+	// 2. Check Body Content
+	// Incapsula
+	if strings.Contains(body, "Incapsula incident ID") ||
+		strings.Contains(body, "_Incapsula_Resource") ||
+		strings.Contains(body, "visid_incap") {
+		return &WAF{Name: "Incapsula WAF", Detected: true}
 	}
 
-	// Add a suspicious parameter
-	q := u.Query()
-	q.Set("waf_probe", "<script>alert(1)</script>")
-	u.RawQuery = q.Encode()
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return &WAF{Name: "", Detected: false}
+	// Cloudflare
+	if strings.Contains(body, "Attention Required! | Cloudflare") ||
+		strings.Contains(body, "Ray ID:") {
+		return &WAF{Name: "Cloudflare WAF", Detected: true}
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return &WAF{Name: "", Detected: false}
+	// Akamai
+	if strings.Contains(body, "AkamaiGHost") ||
+		strings.Contains(body, "Access Denied") {
+		// "Access Denied" is too generic, check for Akamai specific context if possible,
+		// but for now we'll trust the signature if it was working.
+		// Actually "Access Denied" is very generic. Let's be careful.
+		// The previous signature had "Reference #" which is also generic.
+		// Let's stick to "AkamaiGHost" for body.
+		if strings.Contains(body, "AkamaiGHost") {
+			return &WAF{Name: "Akamai WAF", Detected: true}
+		}
 	}
-	defer resp.Body.Close()
 
-	// Check for blocking status codes
-	if resp.StatusCode == 403 || resp.StatusCode == 406 || resp.StatusCode == 501 {
-		// Analyze body for specific WAF signatures
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		body := strings.ToLower(string(bodyBytes))
-
-		if strings.Contains(body, "cloudflare") {
-			return &WAF{Name: "Cloudflare (Active)", Detected: true}
-		}
-		if strings.Contains(body, "incapsula") || strings.Contains(body, "imperva") {
-			return &WAF{Name: "Imperva (Active)", Detected: true}
-		}
-		if strings.Contains(body, "mod_security") || strings.Contains(body, "modsecurity") {
-			return &WAF{Name: "ModSecurity (Active)", Detected: true}
-		}
-		if strings.Contains(body, "sucuri") {
-			return &WAF{Name: "Sucuri (Active)", Detected: true}
-		}
-		if strings.Contains(body, "aws waf") {
-			return &WAF{Name: "AWS WAF (Active)", Detected: true}
-		}
-		if strings.Contains(body, "akamai") {
-			return &WAF{Name: "Akamai (Active)", Detected: true}
-		}
-
-		// Generic detection
-		return &WAF{Name: "Generic WAF (Blocked Request)", Detected: true}
+	// AWS WAF
+	if strings.Contains(body, "AWS WAF") {
+		return &WAF{Name: "AWS WAF", Detected: true}
 	}
 
 	return &WAF{Name: "", Detected: false}
