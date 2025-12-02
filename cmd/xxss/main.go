@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
+	"github.com/lcalzada-xor/xxss/v2/pkg/config"
 	"github.com/lcalzada-xor/xxss/v2/pkg/runner"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner"
 )
 
 // headerFlags allows setting multiple headers
@@ -27,11 +26,11 @@ func main() {
 	options := runner.DefaultOptions()
 
 	// Define flags with both short and long names
-	flag.IntVar(&options.Concurrency, "c", 40, "Concurrency level")
-	flag.IntVar(&options.Concurrency, "concurrency", 40, "Concurrency level")
+	flag.IntVar(&options.Concurrency, "c", config.DefaultConcurrency, "Concurrency level")
+	flag.IntVar(&options.Concurrency, "concurrency", config.DefaultConcurrency, "Concurrency level")
 
-	flag.DurationVar(&options.Timeout, "t", 10*time.Second, "Request timeout")
-	flag.DurationVar(&options.Timeout, "timeout", 10*time.Second, "Request timeout")
+	flag.DurationVar(&options.Timeout, "t", config.DefaultTimeout, "Request timeout")
+	flag.DurationVar(&options.Timeout, "timeout", config.DefaultTimeout, "Request timeout")
 
 	// Verbose flags: -v for verbose, -vv for very verbose
 	flag.BoolVar(&options.Verbose, "v", false, "Verbose output")
@@ -75,7 +74,7 @@ func main() {
 	flag.BoolVar(&options.ScanHeaders, "sh", false, "Scan HTTP headers for XSS")
 	flag.BoolVar(&options.ScanHeaders, "scan-headers", false, "Scan HTTP headers for XSS")
 
-	defaultHeaders := strings.Join(scanner.VulnerableHeaders, ",")
+	defaultHeaders := strings.Join(config.VulnerableHeaders, ",")
 	flag.StringVar(&options.HeaderList, "hl", defaultHeaders, "Headers to scan (comma-separated)")
 	flag.StringVar(&options.HeaderList, "headers-list", defaultHeaders, "Headers to scan")
 
@@ -102,7 +101,7 @@ func main() {
 			"      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m\n" +
 			"    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m\n" +
 			"   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m\n" +
-			"           \x1b[38;5;141mv2.4.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m\n"
+			fmt.Sprintf("           \x1b[38;5;141m%s\x1b[0m | \x1b[38;5;141m%s\x1b[0m\n", config.Version, config.Author)
 
 		fmt.Fprint(os.Stderr, banner)
 		h := `
@@ -110,8 +109,8 @@ USAGE:
   xxss [flags]
 
 SCANNING:
-  -c,  --concurrency int     Number of concurrent workers (default 40)
-  -t,  --timeout duration    Request timeout (default 10s)
+  -c,  --concurrency int     Number of concurrent workers (default %d)
+  -t,  --timeout duration    Request timeout (default %s)
   -x,  --proxy string        Proxy URL (default http://127.0.0.1:8080 if flag is present without value)
   -H,  --header string       Custom header (e.g. 'Cookie: session=123')
 
@@ -183,8 +182,9 @@ EXAMPLES:
 		// we will just rely on the fact that DetectLibraries takes precedence in runner.
 		if !options.Silent {
 			// Check for some common flags that might indicate user intent to scan
-			if options.ScanHeaders || options.BlindURL != "" || options.Data != "" {
-				fmt.Fprintln(os.Stderr, "\x1b[38;5;214m[!] Warning: --detect-libraries is enabled. XSS scanning flags will be ignored.\x1b[0m")
+			if options.ScanHeaders || options.BlindURL != "" || options.Data != "" || options.ScanDeepDOM {
+				fmt.Fprintln(os.Stderr, "\x1b[38;5;214m[!] Warning: --detect-libraries (-dt) is enabled. XSS scanning is DISABLED.\x1b[0m")
+				fmt.Fprintln(os.Stderr, "\x1b[38;5;214m[!] Remove -dt to perform XSS scanning.\x1b[0m")
 			}
 		}
 	}

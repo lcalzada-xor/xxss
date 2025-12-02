@@ -6,6 +6,11 @@ import (
 )
 
 func TestDetect(t *testing.T) {
+	manager, err := NewWAFManager()
+	if err != nil {
+		t.Fatalf("Failed to create WAFManager: %v", err)
+	}
+
 	tests := []struct {
 		name           string
 		headers        map[string]string
@@ -58,7 +63,7 @@ func TestDetect(t *testing.T) {
 				header.Set(k, v)
 			}
 
-			waf := Detect(header, tc.body)
+			waf := manager.Detect(header, tc.body)
 
 			if waf.Detected != tc.expectDetected {
 				t.Errorf("Expected Detected=%v, got %v", tc.expectDetected, waf.Detected)

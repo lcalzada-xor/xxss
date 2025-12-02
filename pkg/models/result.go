@@ -62,11 +62,13 @@ type Result struct {
 
 // DOMFinding represents a potential DOM XSS vulnerability found via static analysis.
 type DOMFinding struct {
-	Source      string `json:"source"`
-	Sink        string `json:"sink"`
-	Line        string `json:"line"`
-	LineNumber  int    `json:"line_number"`
-	Confidence  string `json:"confidence"` // "HIGH", "MEDIUM", "LOW"
-	Description string `json:"description"`
-	Evidence    string `json:"evidence,omitempty"` // Code snippet or proof
+	Source           string            `json:"source"`
+	Sink             string            `json:"sink"`
+	Line             string            `json:"line"`
+	LineNumber       int               `json:"line_number"`
+	Confidence       string            `json:"confidence"` // "HIGH", "MEDIUM", "LOW"
+	Description      string            `json:"description"`
+	Evidence         string            `json:"evidence,omitempty"` // Code snippet or proof
+	SuggestedPayload string            `json:"suggested_payload,omitempty"`
+	Context          ReflectionContext `json:"context,omitempty"`
 }

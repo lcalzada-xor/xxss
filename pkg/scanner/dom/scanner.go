@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/html"
+
 	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
 	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/dom/analysis"
@@ -51,176 +53,186 @@ func (ds *DOMScanner) ScanDOM(body string) []models.DOMFinding {
 
 	ds.logger.Section("DOM XSS Scan")
 
-	// 1. Extract Scripts (Inline and External)
-	// We need to parse JS code, but the input is likely HTML.
-	// Simple extraction of <script> content for now.
-	// In a real browser, we'd have the DOM, but here we are static.
-
-	// Extract inline script content
-	scriptContentRegex := regexp.MustCompile(`(?s)<script[^>]*>(.*?)</script>`)
-	matches := scriptContentRegex.FindAllStringSubmatch(body, -1)
+	// Parse HTML
+	doc, err := html.Parse(strings.NewReader(body))
+	if err != nil {
+		// Fallback to treating as raw JS if HTML parsing fails (e.g. it's a JS file)
+		ds.logger.VV("HTML parsing failed, treating as raw JS: %v", err)
+		return ds.analyzeJSContent(body)
+	}
 
 	var jsCodeBlocks []string
-	for _, match := range matches {
-		if len(match) > 1 {
-			jsCodeBlocks = append(jsCodeBlocks, match[1])
-		}
-	}
+	var eventHandlers []string
 
-	// NEW: Extract Event Handlers (onload, onerror, etc.)
-	// Regex to find attributes starting with "on"
-	eventHandlerRegex := regexp.MustCompile(`\s(on\w+)\s*=\s*["']([^"']+)["']`)
-	eventMatches := eventHandlerRegex.FindAllStringSubmatch(body, -1)
-	for _, match := range eventMatches {
-		if len(match) > 2 {
-			attrName := match[1]
-			jsCode := match[2]
-			ds.logger.VV("DOM: Found event handler '%s' with code: %s", attrName, jsCode)
-			jsCodeBlocks = append(jsCodeBlocks, jsCode)
-		}
-	}
-
-	// NEW: Extract Framework Directives (v-html, ng-bind-html)
-	// These are sinks themselves, so we check if the value is a source
-	frameworkDirectiveRegex := regexp.MustCompile(`\s(v-html|ng-bind-html)\s*=\s*["']([^"']+)["']`)
-	directiveMatches := frameworkDirectiveRegex.FindAllStringSubmatch(body, -1)
-	for _, match := range directiveMatches {
-		if len(match) > 2 {
-			directive := match[1]
-			value := match[2]
-			ds.logger.VV("DOM: Found framework directive '%s' with value: %s", directive, value)
-
-			// Check if value is a source
-			// We can reuse isSource logic if we parse it as an expression,
-			// or just regex check the value string for known sources.
-			// Since it's likely a simple variable or expression, regex check is faster here.
-			for _, srcPattern := range ds.sources {
-				if srcPattern.MatchString(value) {
-					ds.logger.VV("DOM: SINK DETECTED! Framework directive '%s' with source '%s'", directive, value)
-					findings = append(findings, models.DOMFinding{
-						Source:      value,
-						Sink:        directive,
-						Line:        "HTML Attribute",
-						LineNumber:  0, // Hard to get line number with regex
-						Confidence:  "HIGH",
-						Description: fmt.Sprintf("Framework directive '%s' assigned with source '%s'", directive, value),
-						Evidence:    match[0],
-					})
-				}
-			}
-		}
-	}
-
-	// NEW: Detect javascript: pseudo-protocol in href/src
-	// Regex to find href/src with javascript:
-	jsProtocolRegex := regexp.MustCompile(`\s(href|src)\s*=\s*["']\s*javascript:([^"']+)["']`)
-	protocolMatches := jsProtocolRegex.FindAllStringSubmatch(body, -1)
-	for _, match := range protocolMatches {
-		if len(match) > 2 {
-			attr := match[1]
-			code := match[2]
-
-			// Check for safe patterns (False Positive Reduction)
-			cleanCode := strings.TrimSpace(code)
-			cleanCode = strings.TrimSuffix(cleanCode, ";")
-
-			safePatterns := []string{
-				"void(0)",
-				"void(0)", // duplicate but harmless
-				"false",
-				"true",
-				"undefined",
-				"", // empty
-			}
-
-			isSafe := false
-			for _, safe := range safePatterns {
-				if cleanCode == safe {
-					isSafe = true
-					break
+	// Traversal function
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			// 1. Extract Scripts
+			if n.Data == "script" {
+				// Extract content
+				if n.FirstChild != nil {
+					jsCodeBlocks = append(jsCodeBlocks, n.FirstChild.Data)
 				}
 			}
 
-			if isSafe {
-				ds.logger.VV("DOM: Ignoring safe javascript: protocol usage: %s", code)
-				continue
-			}
+			// Check attributes
+			for _, attr := range n.Attr {
+				// 2. Extract Event Handlers
+				if strings.HasPrefix(strings.ToLower(attr.Key), "on") {
+					ds.logger.VV("DOM: Found event handler '%s' with code: %s", attr.Key, attr.Val)
+					jsCodeBlocks = append(jsCodeBlocks, attr.Val)
+					eventHandlers = append(eventHandlers, attr.Val)
+				}
 
-			ds.logger.VV("DOM: Found javascript: protocol in %s: %s", attr, code)
-			// Treat as sink
-			findings = append(findings, models.DOMFinding{
-				Source:      "javascript: pseudo-protocol",
-				Sink:        attr,
-				Line:        "HTML Attribute",
-				LineNumber:  0,
-				Confidence:  "HIGH",
-				Description: fmt.Sprintf("Dangerous 'javascript:' protocol usage in '%s' attribute", attr),
-				Evidence:    match[0],
-			})
-			// Also analyze the code inside
-			jsCodeBlocks = append(jsCodeBlocks, code)
+				// 3. Extract Framework Directives
+				if attr.Key == "v-html" || attr.Key == "ng-bind-html" {
+					ds.logger.VV("DOM: Found framework directive '%s' with value: %s", attr.Key, attr.Val)
+					// Check if value is a source
+					for _, srcPattern := range ds.sources {
+						if srcPattern.MatchString(attr.Val) {
+							ds.logger.VV("DOM: SINK DETECTED! Framework directive '%s' with source '%s'", attr.Key, attr.Val)
+							findings = append(findings, models.DOMFinding{
+								Evidence:         fmt.Sprintf(` %s="%s"`, attr.Key, attr.Val),
+								Source:           attr.Val,
+								Sink:             attr.Key,
+								Line:             "HTML Attribute",
+								LineNumber:       0,
+								Confidence:       "HIGH",
+								Description:      fmt.Sprintf("Framework directive '%s' assigned with source '%s'", attr.Key, attr.Val),
+								Context:          models.ContextAttribute,
+								SuggestedPayload: GenerateDOMPayload(attr.Key, models.ContextAttribute, nil),
+							})
+						}
+					}
+				}
+
+				// 4. Detect javascript: pseudo-protocol
+				if (attr.Key == "href" || attr.Key == "src") && strings.HasPrefix(strings.ToLower(strings.TrimSpace(attr.Val)), "javascript:") {
+					code := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(attr.Val)), "javascript:")
+
+					// Check for safe patterns
+					cleanCode := strings.TrimSpace(code)
+					cleanCode = strings.TrimSuffix(cleanCode, ";")
+					safePatterns := []string{"void(0)", "false", "true", "undefined", ""}
+					isSafe := false
+					for _, safe := range safePatterns {
+						if cleanCode == safe {
+							isSafe = true
+							break
+						}
+					}
+
+					if !isSafe {
+						ds.logger.VV("DOM: Found javascript: protocol in %s: %s", attr.Key, code)
+						findings = append(findings, models.DOMFinding{
+							Evidence:         fmt.Sprintf(` %s="%s"`, attr.Key, attr.Val),
+							Source:           "javascript: pseudo-protocol",
+							Sink:             attr.Key,
+							Line:             "HTML Attribute",
+							LineNumber:       0,
+							Confidence:       "HIGH",
+							Description:      fmt.Sprintf("Dangerous 'javascript:' protocol usage in '%s' attribute", attr.Key),
+							Context:          models.ContextAttribute,
+							SuggestedPayload: "javascript:alert(1)",
+						})
+						jsCodeBlocks = append(jsCodeBlocks, code)
+					}
+				}
+
+				// 5. DOM Clobbering (Basic Check)
+				if attr.Key == "id" || attr.Key == "name" {
+					// We collect these to check against global accesses later
+					// For now, we just store them?
+					// The original logic checked against global accesses.
+					// We need to pass these to the analyzer or check after.
+					// Let's store them in a map for now.
+					// But we need to know if they are accessed.
+					// We'll do a second pass or check after JS analysis.
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
 		}
 	}
+	f(doc)
 
-	// DOM Clobbering Detection moved to after JS analysis
-
-	// Also treat the whole body as JS if it doesn't look like HTML (e.g. external script file)
-	if !strings.Contains(body, "<html") && !strings.Contains(body, "<body") && !strings.Contains(body, "<script") {
+	// Also check if the body itself is JS (no html tags found or just text)
+	// If doc only has text nodes or we found no scripts/html structure, might be raw JS.
+	// But html.Parse usually creates a structure even for raw text.
+	// If we found no scripts and the body doesn't look like HTML, treat as JS.
+	if len(jsCodeBlocks) == 0 && !strings.Contains(body, "<html") {
 		jsCodeBlocks = append(jsCodeBlocks, body)
 	}
 
 	ds.logger.Detail("Found %d inline script blocks", len(jsCodeBlocks))
 
-	ds.logger.Detail("Found %d inline script blocks", len(jsCodeBlocks))
-
-	// Collect all global accesses from all scripts
+	// Analyze JS Blocks
 	allGlobalAccesses := make(map[string]bool)
-
 	for i, jsCode := range jsCodeBlocks {
 		ds.logger.VV("Parsing JS block %d (%d bytes)", i+1, len(jsCode))
-		// 2. Parse and Analyze JS (AST-based)
-		// We pass the sources and sinks from the scanner configuration
 		scriptFindings, globalAccesses := analysis.AnalyzeJS(jsCode, ds.sources, ds.sinks, ds.logger)
+
+		for i := range scriptFindings {
+			ctx := scriptFindings[i].Context
+			if ctx == "" {
+				ctx = models.ContextUnknown
+			}
+			scriptFindings[i].SuggestedPayload = GenerateDOMPayload(scriptFindings[i].Sink, ctx, nil)
+		}
 		findings = append(findings, scriptFindings...)
 
-		// Merge global accesses
 		for k, v := range globalAccesses {
 			allGlobalAccesses[k] = v
 		}
 	}
 
-	// NEW: DOM Clobbering Detection (Refined)
-	// Look for id/name attributes that clash with global window properties
-	// Common clobbering targets: window.test, window.config, etc.
-	// We'll flag any id/name that looks like a variable name and is not standard HTML
-	clobberRegexNew := regexp.MustCompile(`\s(id|name)\s*=\s*["']([a-zA-Z_$][a-zA-Z0-9_$]*)["']`)
-	clobberMatchesNew := clobberRegexNew.FindAllStringSubmatch(body, -1)
-	for _, match := range clobberMatchesNew {
-		if len(match) > 2 {
-			attr := match[1]
-			val := match[2]
-
-			// Check if this ID/Name is actually accessed as a global variable in JS
-			isAccessed := allGlobalAccesses[val]
-
-			if isAccessed {
-				ds.logger.VV("DOM: CONFIRMED DOM Clobbering target: %s=%s (accessed in JS)", attr, val)
-				findings = append(findings, models.DOMFinding{
-					Source:      "HTML Attribute",
-					Sink:        "Global Variable Clobbering",
-					Line:        "HTML Attribute",
-					LineNumber:  0, // Hard to get line number with regex
-					Confidence:  "HIGH",
-					Description: fmt.Sprintf("DOM Clobbering: Element with %s='%s' shadows a global variable accessed in JS", attr, val),
-					Evidence:    match[0],
-				})
-			} else {
-				ds.logger.VV("DOM: Ignoring unused ID/Name for clobbering: %s", val)
+	// DOM Clobbering Verification
+	// We need to traverse again or store the clobbering candidates.
+	// Let's traverse again for clobbering candidates now that we have global accesses.
+	var clobberCheck func(*html.Node)
+	clobberCheck = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			for _, attr := range n.Attr {
+				if attr.Key == "id" || attr.Key == "name" {
+					val := attr.Val
+					if allGlobalAccesses[val] {
+						ds.logger.VV("DOM: CONFIRMED DOM Clobbering target: %s=%s (accessed in JS)", attr.Key, val)
+						findings = append(findings, models.DOMFinding{
+							Evidence:         fmt.Sprintf(` %s="%s"`, attr.Key, val),
+							Source:           "HTML Attribute",
+							Sink:             "Global Variable Clobbering",
+							Line:             "HTML Attribute",
+							LineNumber:       0,
+							Confidence:       "HIGH",
+							Description:      fmt.Sprintf("DOM Clobbering: Element with %s='%s' shadows a global variable accessed in JS", attr.Key, val),
+							SuggestedPayload: fmt.Sprintf("<a id=%s href=javascript:alert(1)>", val),
+						})
+					}
+				}
 			}
 		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			clobberCheck(c)
+		}
 	}
+	clobberCheck(doc)
 
 	return deduplicateFindings(findings)
+}
+
+// analyzeJSContent is a helper for raw JS files
+func (ds *DOMScanner) analyzeJSContent(jsCode string) []models.DOMFinding {
+	scriptFindings, _ := analysis.AnalyzeJS(jsCode, ds.sources, ds.sinks, ds.logger)
+	for i := range scriptFindings {
+		ctx := scriptFindings[i].Context
+		if ctx == "" {
+			ctx = models.ContextUnknown
+		}
+		scriptFindings[i].SuggestedPayload = GenerateDOMPayload(scriptFindings[i].Sink, ctx, nil)
+	}
+	return deduplicateFindings(scriptFindings)
 }
 
 // deduplicateFindings removes duplicate findings based on Source, Sink, and Description

@@ -3,7 +3,6 @@ package scanner
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -21,17 +20,6 @@ import (
 	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/technologies"
 )
 
-// VulnerableHeaders is the list of common HTTP headers that can be vulnerable to XSS
-var VulnerableHeaders = []string{
-	"User-Agent",
-	"Referer",
-	"X-Forwarded-For",
-	"X-Real-IP",
-	"X-Forwarded-Host",
-	"X-Original-URL",
-	"Accept-Language",
-}
-
 // Scanner is the main struct for the XSS scanner.
 // It orchestrates multiple scanning engines.
 type Scanner struct {
@@ -44,6 +32,7 @@ type Scanner struct {
 	reflectedScanner *reflected.Scanner
 	blindScanner     *blind.Scanner
 	techManager      *technologies.Manager
+	wafManager       *security.WAFManager
 
 	// Configuration
 	scanDOM     bool
@@ -59,6 +48,7 @@ type Scanner struct {
 func NewScanner(client *network.Client, headers map[string]string) *Scanner {
 	logger := logger.NewLogger(0) // Default: silent
 	techManager := technologies.NewManager()
+	wafManager, _ := security.NewWAFManager() // Ignore error for now, similar to reflected scanner
 
 	return &Scanner{
 		client:           client,
@@ -68,6 +58,7 @@ func NewScanner(client *network.Client, headers map[string]string) *Scanner {
 		reflectedScanner: reflected.NewScanner(client, headers, logger, techManager),
 		blindScanner:     blind.NewScanner(client, headers, logger, ""),
 		techManager:      techManager,
+		wafManager:       wafManager,
 	}
 }
 
@@ -158,18 +149,20 @@ func (s *Scanner) Scan(ctx context.Context, targetURL string) ([]models.Result, 
 			return results, ctx.Err()
 		}
 
-		result, err := s.reflectedScanner.ProbeParameter(ctx, targetURL, param)
+		resultsList, err := s.reflectedScanner.ProbeParameter(ctx, targetURL, param)
 		if err != nil {
 			continue
 		}
 
-		// Contextual Blind XSS Injection
-		if s.blindURL != "" && result.Context != models.ContextUnknown {
-			s.blindScanner.InjectContextualBlind(targetURL, param, result.Context)
-		}
+		for _, result := range resultsList {
+			// Contextual Blind XSS Injection
+			if s.blindURL != "" && result.Context != models.ContextUnknown {
+				s.blindScanner.InjectContextualBlind(targetURL, param, result.Context)
+			}
 
-		if len(result.Unfiltered) > 0 {
-			results = append(results, result)
+			if len(result.Unfiltered) > 0 {
+				results = append(results, result)
+			}
 		}
 	}
 
@@ -201,17 +194,19 @@ func (s *Scanner) ScanRequest(ctx context.Context, config *models.RequestConfig)
 
 	// 3. Scan Body Parameters
 	for _, param := range reflectedParams {
-		result, err := s.reflectedScanner.ProbeBodyParameter(ctx, config, param, params)
+		resultsList, err := s.reflectedScanner.ProbeBodyParameter(ctx, config, param, params)
 		if err != nil {
 			continue
 		}
 
-		if s.blindURL != "" && result.Context != models.ContextUnknown {
-			s.blindScanner.InjectContextualBlindBody(config, param, result.Context, params, reflected.CreateBodyWithProbe)
-		}
+		for _, result := range resultsList {
+			if s.blindURL != "" && result.Context != models.ContextUnknown {
+				s.blindScanner.InjectContextualBlindBody(config, param, result.Context, params, reflected.CreateBodyWithProbe)
+			}
 
-		if len(result.Unfiltered) > 0 {
-			results = append(results, result)
+			if len(result.Unfiltered) > 0 {
+				results = append(results, result)
+			}
 		}
 	}
 
@@ -221,7 +216,7 @@ func (s *Scanner) ScanRequest(ctx context.Context, config *models.RequestConfig)
 // ScanHeader scans a specific HTTP header for XSS
 func (s *Scanner) ScanHeader(ctx context.Context, targetURL, headerName string) (models.Result, error) {
 	// Delegate to reflected scanner
-	result, err := s.reflectedScanner.ScanHeader(ctx, targetURL, headerName)
+	results, err := s.reflectedScanner.ScanHeader(ctx, targetURL, headerName)
 	if err != nil {
 		return models.Result{}, err
 	}
@@ -231,7 +226,10 @@ func (s *Scanner) ScanHeader(ctx context.Context, targetURL, headerName string) 
 		s.blindScanner.InjectBlindHeader(targetURL, headerName)
 	}
 
-	return result, err
+	if len(results) > 0 {
+		return results[0], err
+	}
+	return models.Result{}, err
 }
 
 func (s *Scanner) scanDOMXSS(ctx context.Context, targetURL string) ([]models.Result, error) {
@@ -308,7 +306,11 @@ func parseBodyParams(body, contentType string) map[string]string {
 				}
 			}
 		} else {
-			fmt.Printf("JSON Unmarshal error: %v\n", err)
+			// s.logger.Error("JSON Unmarshal error: %v", err)
+			// Note: We don't have access to scanner instance here easily as it is a helper function.
+			// Ideally this function should be a method of Scanner or take a logger.
+			// For now, let's just suppress it or print to stderr if we really must, but better to just ignore as it might be garbage body.
+
 		}
 	} else {
 		values, err := url.ParseQuery(body)
@@ -354,7 +356,13 @@ func (s *Scanner) DetectTechnologies(ctx context.Context, targetURL string) ([]*
 	techs := s.techManager.DetectAll(body)
 
 	// 1.5 Detect WAF (Passive)
-	waf := security.Detect(resp.Header, body)
+	var waf *security.WAF
+	if s.wafManager != nil {
+		waf = s.wafManager.Detect(resp.Header, body)
+	} else {
+		waf = &security.WAF{Detected: false}
+	}
+
 	if waf.Detected {
 		techs = append(techs, &technologies.Technology{
 			Name:       waf.Name,

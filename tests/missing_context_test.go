@@ -4,16 +4,17 @@ import (
 	"testing"
 
 	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflection"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflected/analysis"
 )
 
 func TestTagNameContext(t *testing.T) {
 	body := "<PROBE>"
-	ctx := reflection.DetectContext(body, "PROBE")
+	ctx := analysis.DetectContext(body, "PROBE", -1)
 	if ctx != models.ContextTagName {
 		t.Fatalf("expected ContextTagName, got %s", ctx)
 	}
-	payload := reflection.GetSuggestedPayload(ctx, []string{"<", ">", "=", " ", "/"})
+	payload := payloads.GenerateReflectedPayload(ctx, []string{"<", ">", "=", " ", "/"}, nil)
 	if payload == "" {
 		t.Fatalf("expected a payload for TagName context")
 	}
@@ -21,11 +22,11 @@ func TestTagNameContext(t *testing.T) {
 
 func TestRCDATAContextTitle(t *testing.T) {
 	body := "<title>PROBE</title>"
-	ctx := reflection.DetectContext(body, "PROBE")
+	ctx := analysis.DetectContext(body, "PROBE", -1)
 	if ctx != models.ContextRCDATA {
 		t.Fatalf("expected ContextRCDATA, got %s", ctx)
 	}
-	payload := reflection.GetSuggestedPayload(ctx, []string{"<", ">", "/"})
+	payload := payloads.GenerateReflectedPayload(ctx, []string{"<", ">", "/"}, nil)
 	if payload == "" {
 		t.Fatalf("expected a payload for RCDATA context")
 	}
@@ -33,11 +34,11 @@ func TestRCDATAContextTitle(t *testing.T) {
 
 func TestRCDATAContextTextarea(t *testing.T) {
 	body := "<textarea>PROBE</textarea>"
-	ctx := reflection.DetectContext(body, "PROBE")
+	ctx := analysis.DetectContext(body, "PROBE", -1)
 	if ctx != models.ContextRCDATA {
 		t.Fatalf("expected ContextRCDATA, got %s", ctx)
 	}
-	payload := reflection.GetSuggestedPayload(ctx, []string{"<", ">", "/"})
+	payload := payloads.GenerateReflectedPayload(ctx, []string{"<", ">", "/"}, nil)
 	if payload == "" {
 		t.Fatalf("expected a payload for RCDATA context")
 	}
@@ -48,11 +49,11 @@ func TestMissingContexts(t *testing.T) {
 	t.Run("Meta Refresh", func(t *testing.T) {
 		context := `<meta http-equiv="refresh" content="0;url=PROBE">`
 		probe := "PROBE"
-		ctx := reflection.DetectContext(context, probe)
+		ctx := analysis.DetectContext(context, probe, -1)
 		if ctx != models.ContextMetaRefresh {
 			t.Errorf("Expected ContextMetaRefresh, got %s", ctx)
 		}
-		payload := reflection.GetSuggestedPayload(ctx, []string{"<", ">", "\"", "'", ";", ":", "/", "(", ")"})
+		payload := payloads.GenerateReflectedPayload(ctx, []string{"<", ">", "\"", "'", ";", ":", "/", "(", ")"}, nil)
 		if payload != "javascript:alert(1)" {
 			t.Errorf("Expected javascript:alert(1), got %s", payload)
 		}
@@ -62,11 +63,11 @@ func TestMissingContexts(t *testing.T) {
 	t.Run("Data URI", func(t *testing.T) {
 		context := `<a href="data:text/html;base64,PROBE">Click me</a>`
 		probe := "PROBE"
-		ctx := reflection.DetectContext(context, probe)
+		ctx := analysis.DetectContext(context, probe, -1)
 		if ctx != models.ContextDataURI {
 			t.Errorf("Expected ContextDataURI, got %s", ctx)
 		}
-		payload := reflection.GetSuggestedPayload(ctx, []string{"<", ">", "\"", "'", ";", ":", "/", "(", ")"})
+		payload := payloads.GenerateReflectedPayload(ctx, []string{"<", ">", "\"", "'", ";", ":", "/", "(", ")"}, nil)
 		if payload != "data:text/html,<script>alert(1)</script>" {
 			t.Errorf("Expected data:text/html,<script>alert(1)</script>, got %s", payload)
 		}
@@ -76,7 +77,7 @@ func TestMissingContexts(t *testing.T) {
 	t.Run("SVG", func(t *testing.T) {
 		context := `<svg><script>PROBE</script></svg>`
 		probe := "PROBE"
-		ctx := reflection.DetectContext(context, probe)
+		ctx := analysis.DetectContext(context, probe, -1)
 		// Note: DetectContext might return ContextHTML or ContextTagName depending on implementation details
 		// But let's assume we want it to detect SVG context if specific SVG tags are present
 		// Actually, <script> inside <svg> is just HTML/XML context essentially, or RCDATA.
@@ -85,7 +86,7 @@ func TestMissingContexts(t *testing.T) {
 		if ctx != models.ContextSVG {
 			t.Errorf("Expected ContextSVG, got %s", ctx)
 		}
-		payload := reflection.GetSuggestedPayload(ctx, []string{"<", ">", "\"", "'", ";", ":", "/", "(", ")"})
+		payload := payloads.GenerateReflectedPayload(ctx, []string{"<", ">", "\"", "'", ";", ":", "/", "("}, nil)
 		if payload == "" {
 			t.Error("Expected non-empty payload for SVG")
 		}

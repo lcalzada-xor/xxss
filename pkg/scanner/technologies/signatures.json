@@ -9,6 +9,7 @@
         ],
         "content_patterns": [
             "React v([\\d\\.]+)",
+            "React\\.version\\s*=\\s*['\"]([\\d\\.]+)['\"]",
             "__REACT_DEVTOOLS_GLOBAL_HOOK__",
             "data-reactid",
             "data-reactroot"
@@ -24,6 +25,7 @@
         ],
         "content_patterns": [
             "Vue\\.js v([\\d\\.]+)",
+            "Vue\\.version\\s*=\\s*['\"]([\\d\\.]+)['\"]",
             "__VUE_DEVTOOLS_GLOBAL_HOOK__",
             "data-v-"
         ]
@@ -143,6 +145,98 @@
         "content_patterns": [
             "_.VERSION",
             "var VERSION = ['\"]([\\d\\.]+)['\"]"
+        ]
+    },
+    {
+        "name": "Alpine.js",
+        "file_patterns": [
+            "alpine(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "alpine\\.min\\.js"
+        ],
+        "content_patterns": [
+            "Alpine.version",
+            "x-data"
+        ]
+    },
+    {
+        "name": "HTMX",
+        "file_patterns": [
+            "htmx(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "htmx\\.min\\.js"
+        ],
+        "content_patterns": [
+            "htmx.version",
+            "hx-get",
+            "hx-post"
+        ]
+    },
+    {
+        "name": "Axios",
+        "file_patterns": [
+            "axios(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "axios\\.min\\.js"
+        ],
+        "content_patterns": [
+            "axios v([\\d\\.]+)",
+            "exports\\.axios",
+            "var VERSION = ['\"]([\\d\\.]+)['\"]"
+        ]
+    },
+    {
+        "name": "Moment.js",
+        "file_patterns": [
+            "moment(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "moment\\.min\\.js"
+        ],
+        "content_patterns": [
+            "moment\\.version",
+            "//! moment\\.js",
+            "//! version : ([\\d\\.]+)"
+        ]
+    },
+    {
+        "name": "Chart.js",
+        "file_patterns": [
+            "chart(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "chart\\.min\\.js"
+        ],
+        "content_patterns": [
+            "Chart\\.version",
+            "Chart\\.js v([\\d\\.]+)"
+        ]
+    },
+    {
+        "name": "D3.js",
+        "file_patterns": [
+            "d3(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "d3\\.min\\.js",
+            "d3\\.v([\\d]+)\\.min\\.js"
+        ],
+        "content_patterns": [
+            "d3\\.version",
+            "d3\\.js v([\\d\\.]+)"
+        ]
+    },
+    {
+        "name": "Three.js",
+        "file_patterns": [
+            "three(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "three\\.min\\.js"
+        ],
+        "content_patterns": [
+            "THREE\\.REVISION",
+            "Three\\.js r([\\d\\.]+)"
+        ]
+    },
+    {
+        "name": "Socket.io",
+        "file_patterns": [
+            "socket\\.io(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "socket\\.io\\.js"
+        ],
+        "content_patterns": [
+            "io\\.version",
+            "Socket\\.IO v([\\d\\.]+)"
         ]
     }
 ]

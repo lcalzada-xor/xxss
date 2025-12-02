@@ -1,4 +1,4 @@
-package reflection
+package analysis
 
 import (
 	"testing"
@@ -20,7 +20,7 @@ func TestAngularCSTIDetection(t *testing.T) {
 	`
 	probe := "zXyWvUtSrQpOnMlKjIhGfEdCbA"
 
-	ctx := DetectContext(body, probe)
+	ctx := DetectContext(body, probe, -1)
 
 	if ctx != models.ContextAngular {
 		t.Errorf("Expected ContextAngular, got %s", ctx)

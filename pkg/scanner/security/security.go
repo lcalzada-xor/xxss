@@ -131,20 +131,6 @@ func IsExploitable(context models.ReflectionContext, headers models.SecurityHead
 			return true
 		}
 
-		// Alternative: javascript: protocol (for href, src attributes in DOM XSS)
-		// Requires : / ( ) for javascript:alert(1)
-		if contains(unfiltered, ":") && contains(unfiltered, "/") &&
-			contains(unfiltered, "(") && contains(unfiltered, ")") {
-			return true
-		}
-
-		// Alternative: event handlers if can break out of attribute
-		// Requires quotes and = for onclick=alert(1)
-		if (contains(unfiltered, "\"") || contains(unfiltered, "'")) &&
-			contains(unfiltered, "=") && contains(unfiltered, "(") && contains(unfiltered, ")") {
-			return true
-		}
-
 		return false
 
 	case models.ContextJavaScript:

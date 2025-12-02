@@ -31,7 +31,7 @@ func TestAngularVersionPayloads(t *testing.T) {
 					Version: tt.version,
 				},
 			}
-			payload := GeneratePayload(models.ContextAngular, allowed, techs)
+			payload := GenerateReflectedPayload(models.ContextAngular, allowed, techs)
 			if payload != tt.expected {
 				t.Errorf("Version %s: expected %s, got %s", tt.version, tt.expected, payload)
 			}

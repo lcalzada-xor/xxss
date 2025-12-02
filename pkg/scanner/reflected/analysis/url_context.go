@@ -1,4 +1,4 @@
-package reflection
+package analysis
 
 import (
 	"regexp"

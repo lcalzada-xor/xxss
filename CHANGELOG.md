@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.5.0] - 2025-12-02
+
+### Added
+- **WAF Detection Improvements**: Externalized WAF signatures to `pkg/scanner/security/waf_signatures.json` for easier updates and better maintainability.
+- **Payload Obfuscation**: Introduced a new obfuscation engine to evade WAFs and filters.
+- **New Packages**: Created `pkg/scanner/payloads` and `pkg/scanner/security` for better code organization.
+
+### Changed
+- **Major Refactoring**: Split `Scanner` into specialized components (`ReflectedScanner`, `BlindScanner`, `DOMScanner`) and removed the legacy `pkg/scanner/reflection` package.
+- **CLI Improvements**: Updated banner and version information.
+
 ## [v2.4.0] - 2025-11-29
 
 ### Added

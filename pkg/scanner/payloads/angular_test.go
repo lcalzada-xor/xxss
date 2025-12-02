@@ -9,9 +9,9 @@ import (
 func TestAngularPayloadGeneration(t *testing.T) {
 	// Simulate allowed chars: . ( ) ' { }
 	// Missing < > "
-	allowed := []string{".", "(", ")", "'", "{", "}"}
+	allowed := []string{".", "(", ")", "'", "{", "}", "$"}
 
-	payload := GeneratePayload(models.ContextAngular, allowed, nil)
+	payload := GenerateReflectedPayload(models.ContextAngular, allowed, nil)
 	expected := "{{$on.constructor('alert(1)')()}}"
 
 	if payload != expected {

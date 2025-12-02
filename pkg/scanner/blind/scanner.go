@@ -18,15 +18,19 @@ type Scanner struct {
 	headers  map[string]string
 	logger   *logger.Logger
 	blindURL string
+	sem      chan struct{} // Semaphore for concurrency control
 }
 
 // NewScanner creates a new blind XSS scanner
 func NewScanner(client *network.Client, headers map[string]string, logger *logger.Logger, blindURL string) *Scanner {
+	// Default to 50 concurrent blind probes
+	concurrency := 50
 	return &Scanner{
 		client:   client,
 		headers:  headers,
 		logger:   logger,
 		blindURL: blindURL,
+		sem:      make(chan struct{}, concurrency),
 	}
 }
 
@@ -58,8 +62,11 @@ func (s *Scanner) InjectContextualBlind(targetURL, param string, context models.
 			req.Header.Set(k, v)
 		}
 
-		// Fire and forget
+		// Fire and forget with concurrency control
 		go func(r *http.Request) {
+			s.sem <- struct{}{}        // Acquire
+			defer func() { <-s.sem }() // Release
+
 			resp, err := s.client.Do(r)
 			if err == nil && resp != nil {
 				resp.Body.Close()
@@ -89,9 +96,15 @@ func (s *Scanner) InjectContextualBlindBody(config *models.RequestConfig, param 
 			req.Header.Set(k, v)
 		}
 
-		// Fire and forget
+		// Fire and forget with concurrency control
 		go func(r *http.Request) {
-			s.client.Do(r)
+			s.sem <- struct{}{}        // Acquire
+			defer func() { <-s.sem }() // Release
+
+			resp, err := s.client.Do(r)
+			if err == nil && resp != nil {
+				resp.Body.Close()
+			}
 		}(req)
 	}
 }
@@ -108,6 +121,12 @@ func (s *Scanner) InjectBlindHeader(targetURL, headerName string) {
 
 	req.Header.Set(headerName, payload)
 	go func(r *http.Request) {
-		s.client.Do(r)
+		s.sem <- struct{}{}        // Acquire
+		defer func() { <-s.sem }() // Release
+
+		resp, err := s.client.Do(r)
+		if err == nil && resp != nil {
+			resp.Body.Close()
+		}
 	}(req)
 }

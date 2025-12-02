@@ -1,0 +1,112 @@
+[
+    {
+        "name": "Cloudflare WAF",
+        "headers": {
+            "server": "cloudflare",
+            "cf-ray": "",
+            "cf-cache-status": "",
+            "__cf_bm": ""
+        },
+        "body_patterns": [
+            "Attention Required! | Cloudflare",
+            "Ray ID:"
+        ]
+    },
+    {
+        "name": "AWS WAF",
+        "headers": {
+            "x-amzn-requestid": "",
+            "x-amz-cf-id": ""
+        },
+        "header_patterns": {
+            "server": [
+                "awselb",
+                "awsalb"
+            ]
+        },
+        "body_patterns": [
+            "AWS WAF"
+        ]
+    },
+    {
+        "name": "Akamai WAF",
+        "headers": {
+            "x-akamai-transformed": "",
+            "akamai-origin-hop": ""
+        },
+        "header_patterns": {
+            "server": [
+                "akamai"
+            ]
+        },
+        "body_patterns": [
+            "AkamaiGHost"
+        ]
+    },
+    {
+        "name": "Incapsula WAF",
+        "headers": {
+            "x-iinfo": "",
+            "visid_incap": ""
+        },
+        "header_patterns": {
+            "x-cdn": [
+                "incapsula"
+            ],
+            "server": [
+                "incapsula",
+                "imperva"
+            ]
+        },
+        "body_patterns": [
+            "Incapsula incident ID",
+            "_Incapsula_Resource",
+            "visid_incap"
+        ]
+    },
+    {
+        "name": "ModSecurity",
+        "header_patterns": {
+            "server": [
+                "mod_security",
+                "modsecurity"
+            ]
+        }
+    },
+    {
+        "name": "F5 BIG-IP",
+        "headers": {
+            "x-cnection": "",
+            "x-wa-info": ""
+        },
+        "header_patterns": {
+            "server": [
+                "bigip",
+                "f5"
+            ]
+        }
+    },
+    {
+        "name": "Sucuri WAF",
+        "headers": {
+            "x-sucuri-id": "",
+            "x-sucuri-cache": ""
+        },
+        "header_patterns": {
+            "server": [
+                "sucuri"
+            ]
+        }
+    },
+    {
+        "name": "Barracuda WAF",
+        "headers": {
+            "barra-counter": ""
+        },
+        "header_patterns": {
+            "server": [
+                "barracuda"
+            ]
+        }
+    }
+]

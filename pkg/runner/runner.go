@@ -12,6 +12,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/lcalzada-xor/xxss/v2/pkg/config"
 	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 	"github.com/lcalzada-xor/xxss/v2/pkg/network"
 	"github.com/lcalzada-xor/xxss/v2/pkg/output"
@@ -123,7 +124,7 @@ func (r *Runner) Run() {
 		fmt.Fprintln(os.Stderr, "      \x1b[38;5;93m█  ▄▀      █  ▄▀   █▀▀▀    █▀▀▀   \x1b[0m")
 		fmt.Fprintln(os.Stderr, "    \x1b[38;5;57m▄▀  ▄▀     ▄▀  ▄▀    ▐       ▐      \x1b[0m")
 		fmt.Fprintln(os.Stderr, "   \x1b[38;5;57m█    ▐     █    ▐                    \x1b[0m")
-		fmt.Fprintln(os.Stderr, "           \x1b[38;5;141mv2.3.0\x1b[0m | \x1b[38;5;141m@lcalzada-xor\x1b[0m")
+		fmt.Fprintf(os.Stderr, "           \x1b[38;5;141m%s\x1b[0m | \x1b[38;5;141m%s\x1b[0m\n", config.Version, config.Author)
 		fmt.Fprintln(os.Stderr, "")
 		if verboseLevel >= 1 {
 			fmt.Fprintf(os.Stderr, "[*] Concurrency: %d workers\n", r.options.Concurrency)

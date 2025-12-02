@@ -1,8 +1,12 @@
-package reflection
+package analysis
 
 import (
+	"regexp"
 	"strings"
+	"unicode"
 )
+
+var entityRegex = regexp.MustCompile(`&[^;]+;`)
 
 // SpecialChars is the set of characters we want to probe for XSS.
 // Expanded list to catch XSS without quotes and other edge cases.
@@ -65,19 +69,26 @@ func AnalyzeResponse(body, probe string) []string {
 			continue
 		}
 
+		// Check if the part contains structural HTML or other text
+		// We do this by removing all HTML entities and checking if any alphanumeric characters remain.
+		// Our payload consists ONLY of special characters, so if there are letters/numbers,
+		// it's likely not our clean reflection.
+		cleanPart := entityRegex.ReplaceAllString(part, "")
+		hasAlphanumeric := false
+		for _, r := range cleanPart {
+			if unicode.IsLetter(r) || unicode.IsNumber(r) {
+				hasAlphanumeric = true
+				break
+			}
+		}
+
+		if hasAlphanumeric {
+			continue
+		}
+
 		for _, char := range SpecialChars {
 			if strings.Contains(part, char) {
-				// Check if this character is HTML-encoded in the full body
-				// If it's encoded, it's likely not exploitable (reduce false positives)
-				// But we still report it since xxss is a screening tool (dalfox will verify)
-				if isHTMLEncoded(body, char) {
-					// Character appears encoded somewhere, but also appears unencoded in this part
-					// This is still worth reporting for dalfox to analyze
-					uniqueUnfiltered[char] = true
-				} else {
-					// Character appears unencoded - definitely report it
-					uniqueUnfiltered[char] = true
-				}
+				uniqueUnfiltered[char] = true
 			}
 		}
 	}

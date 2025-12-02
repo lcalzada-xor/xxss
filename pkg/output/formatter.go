@@ -67,6 +67,9 @@ func Format(res models.Result, format string) string {
 					if finding.Evidence != "" {
 						sb.WriteString(fmt.Sprintf("             %sEvidence:%s %s%s\n", cDarkPurple, cReset, strings.TrimSpace(finding.Evidence), cReset))
 					}
+					if finding.SuggestedPayload != "" {
+						sb.WriteString(fmt.Sprintf("             %sPayload:%s  %s%s%s\n", cDarkPurple, cReset, cLightPurple, finding.SuggestedPayload, cReset))
+					}
 					sb.WriteString("\n") // Add spacing between findings
 				}
 			}

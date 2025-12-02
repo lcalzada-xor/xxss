@@ -9,15 +9,17 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
 	"github.com/lcalzada-xor/xxss/v2/pkg/models"
 	"github.com/lcalzada-xor/xxss/v2/pkg/network"
 	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflection"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflected/analysis"
 	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/security"
 	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/technologies"
 )
@@ -28,6 +30,7 @@ type Scanner struct {
 	headers       map[string]string
 	logger        *logger.Logger
 	techManager   *technologies.Manager
+	wafManager    *security.WAFManager
 	useRawPayload bool
 	requestCount  int
 	requestMutex  sync.Mutex
@@ -35,11 +38,18 @@ type Scanner struct {
 
 // NewScanner creates a new reflected XSS scanner
 func NewScanner(client *network.Client, headers map[string]string, logger *logger.Logger, techManager *technologies.Manager) *Scanner {
+	wafManager, err := security.NewWAFManager()
+	if err != nil {
+		logger.Detail("Error initializing WAF Manager: %v", err)
+		// Proceed with nil manager, Detect will handle it or we check for nil
+	}
+
 	return &Scanner{
 		client:      client,
 		headers:     headers,
 		logger:      logger,
 		techManager: techManager,
+		wafManager:  wafManager,
 	}
 }
 
@@ -127,10 +137,10 @@ func (s *Scanner) CheckReflection(ctx context.Context, targetURL string) ([]stri
 }
 
 // ProbeParameter injects special characters into a parameter to test for XSS
-func (s *Scanner) ProbeParameter(ctx context.Context, targetURL, param string) (models.Result, error) {
+func (s *Scanner) ProbeParameter(ctx context.Context, targetURL, param string) ([]models.Result, error) {
 	u, err := url.Parse(targetURL)
 	if err != nil {
-		return models.Result{}, err
+		return nil, err
 	}
 
 	s.logger.Section(fmt.Sprintf("Probing Parameter: %s", param))
@@ -139,7 +149,7 @@ func (s *Scanner) ProbeParameter(ctx context.Context, targetURL, param string) (
 	val := qs.Get(param)
 
 	probeStr := "xssprobe"
-	payload := val + probeStr + strings.Join(reflection.SpecialChars, "") + probeStr
+	payload := val + probeStr + strings.Join(analysis.SpecialChars, "") + probeStr
 
 	s.logger.VV("Payload (%d chars): %s", len(payload), payload)
 
@@ -174,7 +184,7 @@ func (s *Scanner) ProbeParameter(ctx context.Context, targetURL, param string) (
 
 	req, err := http.NewRequestWithContext(ctx, "GET", finalURL, nil)
 	if err != nil {
-		return models.Result{}, err
+		return nil, err
 	}
 	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36")
 	for k, v := range s.headers {
@@ -188,7 +198,7 @@ func (s *Scanner) ProbeParameter(ctx context.Context, targetURL, param string) (
 	s.requestMutex.Unlock()
 	elapsed := time.Since(start)
 	if err != nil {
-		return models.Result{}, err
+		return nil, err
 	}
 
 	s.logger.Detail("Response: %d %s (%v, %d bytes)", resp.StatusCode, resp.Status, elapsed, resp.ContentLength)
@@ -260,18 +270,18 @@ func (s *Scanner) CheckBodyReflection(config *models.RequestConfig, params map[s
 }
 
 // ProbeBodyParameter injects special characters into a body parameter
-func (s *Scanner) ProbeBodyParameter(ctx context.Context, config *models.RequestConfig, param string, params map[string]string) (models.Result, error) {
+func (s *Scanner) ProbeBodyParameter(ctx context.Context, config *models.RequestConfig, param string, params map[string]string) ([]models.Result, error) {
 	s.logger.Section(fmt.Sprintf("Probing Parameter: %s", param))
 
 	val := params[param]
 	probeStr := "xssprobe"
-	payload := val + probeStr + strings.Join(reflection.SpecialChars, "") + probeStr
+	payload := val + probeStr + strings.Join(analysis.SpecialChars, "") + probeStr
 
 	testBody := CreateBodyWithProbe(params, param, payload, config.ContentType)
 
 	req, err := http.NewRequestWithContext(ctx, string(config.Method), config.URL, bytes.NewBufferString(testBody))
 	if err != nil {
-		return models.Result{}, err
+		return nil, err
 	}
 
 	req.Header.Set("Content-Type", string(config.ContentType))
@@ -285,20 +295,20 @@ func (s *Scanner) ProbeBodyParameter(ctx context.Context, config *models.Request
 	s.requestCount++
 	s.requestMutex.Unlock()
 	if err != nil {
-		return models.Result{}, err
+		return nil, err
 	}
 
 	return s.AnalyzeReflection(config.URL, string(config.Method), param, models.InjectionBody, resp, probeStr)
 }
 
 // ScanHeader scans a specific HTTP header for XSS
-func (s *Scanner) ScanHeader(ctx context.Context, targetURL, headerName string) (models.Result, error) {
+func (s *Scanner) ScanHeader(ctx context.Context, targetURL, headerName string) ([]models.Result, error) {
 	probeStr := "xssprobe"
-	payload := probeStr + strings.Join(reflection.SpecialChars, "") + probeStr
+	payload := probeStr + strings.Join(analysis.SpecialChars, "") + probeStr
 
 	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	if err != nil {
-		return models.Result{}, err
+		return nil, err
 	}
 
 	req.Header.Set(headerName, payload)
@@ -314,7 +324,7 @@ func (s *Scanner) ScanHeader(ctx context.Context, targetURL, headerName string) 
 	s.requestCount++
 	s.requestMutex.Unlock()
 	if err != nil {
-		return models.Result{}, err
+		return nil, err
 	}
 
 	return s.AnalyzeReflection(targetURL, "GET", headerName, models.InjectionHeader, resp, probeStr)
@@ -345,28 +355,29 @@ func CreateBodyWithProbe(params map[string]string, targetParam, probe string, co
 }
 
 // AnalyzeReflection performs common analysis on the response
-func (s *Scanner) AnalyzeReflection(targetURL, method, param string, injectionType models.InjectionType, resp *http.Response, probeStr string) (models.Result, error) {
+func (s *Scanner) AnalyzeReflection(targetURL, method, param string, injectionType models.InjectionType, resp *http.Response, probeStr string) ([]models.Result, error) {
 	defer resp.Body.Close()
 
 	statusCode := resp.StatusCode
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return models.Result{}, err
+		return nil, err
 	}
 	body := string(bodyBytes)
 
-	unfiltered := reflection.AnalyzeResponse(body, probeStr)
-	s.logger.Detail("Unfiltered chars: %v", unfiltered)
-
 	s.logger.Section("Context Analysis")
-	context := reflection.DetectContextVerbose(body, probeStr, s.logger)
 
 	s.logger.Section("Security Analysis")
 	s.logger.Detail("HTTP Status: %d", statusCode)
 	securityHeaders := security.AnalyzeSecurityHeaders(resp)
 
-	waf := security.Detect(resp.Header, body)
+	var waf *security.WAF
+	if s.wafManager != nil {
+		waf = s.wafManager.Detect(resp.Header, body)
+	} else {
+		waf = &security.WAF{Detected: false}
+	}
 	if waf.Detected {
 		securityHeaders.WAF = waf.Name
 		s.logger.Detail("WAF: %s", waf.Name)
@@ -385,39 +396,152 @@ func (s *Scanner) AnalyzeReflection(targetURL, method, param string, injectionTy
 		s.logger.Detail("X-XSS-Protection: not set")
 	}
 
-	exploitable := security.IsExploitable(context, securityHeaders, unfiltered)
-	s.logger.Detail("Exploitable: %v", exploitable)
+	// Find all reflections
+	var exploitableResults []models.Result
+	var allResults []models.Result
+	var bestNonExploitable models.Result
+	bestNonExploitable.Exploitable = false
 
-	s.logger.Section("Suggested Payload")
+	// Helper to find all indices of a substring
+	var indices []int
+	start := 0
+	for {
+		idx := strings.Index(body[start:], probeStr)
+		if idx == -1 {
+			break
+		}
+		indices = append(indices, start+idx)
+		start += idx + len(probeStr)
+	}
 
-	techs := s.techManager.DetectAll(body)
-	if len(techs) > 0 {
-		s.logger.Detail("Detected Technologies:")
+	if len(indices) == 0 {
+		return nil, nil
+	}
+
+	s.logger.Detail("Found %d reflections", len(indices))
+
+	visited := make(map[int]bool)
+
+	for _, idx := range indices {
+		if visited[idx] {
+			continue
+		}
+
+		// Analyze this specific reflection
+		context := analysis.DetectContextVerbose(body, probeStr, idx, s.logger)
+
+		// Local check for unfiltered chars
+		localUnfiltered, nextProbeIdx := checkLocalUnfiltered(body, idx, probeStr, analysis.SpecialChars)
+		if nextProbeIdx != -1 {
+			visited[nextProbeIdx] = true
+		}
+
+		exploitable := security.IsExploitable(context, securityHeaders, localUnfiltered)
+
+		s.logger.Detail("Reflection at %d: Context=%s, Exploitable=%v, Unfiltered=%v", idx, context, exploitable, localUnfiltered)
+
+		techs := s.techManager.DetectAll(body)
+		suggestedPayload := payloads.GenerateReflectedPayload(context, localUnfiltered, techs)
+
+		var techStrings []string
 		for _, tech := range techs {
-			s.logger.Detail(" - %s %s (%s)", tech.Name, tech.Version, tech.Confidence)
+			techStrings = append(techStrings, fmt.Sprintf("%s %s", tech.Name, tech.Version))
+		}
+
+		result := models.Result{
+			URL:              targetURL,
+			Method:           method,
+			Parameter:        param,
+			InjectionType:    injectionType,
+			HTTPStatus:       statusCode,
+			Reflected:        true,
+			Unfiltered:       localUnfiltered,
+			Context:          context,
+			SecurityHeaders:  securityHeaders,
+			Exploitable:      exploitable,
+			SuggestedPayload: suggestedPayload,
+			Technologies:     techStrings,
+		}
+
+		allResults = append(allResults, result)
+
+		if exploitable {
+			exploitableResults = append(exploitableResults, result)
+		} else {
+			// Keep track of the "best" non-exploitable result (e.g. most unfiltered chars)
+			if !bestNonExploitable.Reflected || len(localUnfiltered) > len(bestNonExploitable.Unfiltered) {
+				bestNonExploitable = result
+			}
 		}
 	}
 
-	suggestedPayload := payloads.GeneratePayload(context, unfiltered, techs)
-	s.logger.VV("%s", suggestedPayload)
-
-	var techStrings []string
-	for _, tech := range techs {
-		techStrings = append(techStrings, fmt.Sprintf("%s %s", tech.Name, tech.Version))
+	// If we have exploitable results, return ALL of them
+	if len(exploitableResults) > 0 {
+		s.logger.Detail("Found %d exploitable reflections", len(exploitableResults))
+		for _, res := range exploitableResults {
+			s.logger.Section("Suggested Payload")
+			s.logger.VV("%s", res.SuggestedPayload)
+		}
+		return exploitableResults, nil
 	}
 
-	return models.Result{
-		URL:              targetURL,
-		Method:           method,
-		Parameter:        param,
-		InjectionType:    injectionType,
-		HTTPStatus:       statusCode,
-		Reflected:        true,
-		Unfiltered:       unfiltered,
-		Context:          context,
-		SecurityHeaders:  securityHeaders,
-		Exploitable:      exploitable,
-		SuggestedPayload: suggestedPayload,
-		Technologies:     techStrings,
-	}, nil
+	// If no exploitable results, return the best non-exploitable one
+	s.logger.Detail("No exploitable reflections found. Returning best non-exploitable result.")
+	return []models.Result{bestNonExploitable}, nil
+}
+
+// checkLocalUnfiltered checks which special characters are present immediately after the probe
+func checkLocalUnfiltered(body string, probeIdx int, probe string, specialChars []string) ([]string, int) {
+	unfiltered := []string{}
+	// We expect the reflection to be `probe` + `content` + `probe`?
+	// Or just `probe` + `content`?
+	// The injection was `probe + chars + probe`.
+	// So at `probeIdx`, we have the FIRST probe.
+	// The content should follow immediately.
+
+	start := probeIdx + len(probe)
+	if start >= len(body) {
+		return unfiltered, -1
+	}
+
+	// We look for the NEXT probe to define the end of the content?
+	// Or just check if the chars are there.
+	// Since we know the order of chars, we can check them.
+	// But they might be mixed with other stuff if reflection is weird.
+	// Assuming standard reflection:
+
+	// Let's just look at the next N chars (where N is len(chars) * max_encoding_expansion).
+	// Or find the next probe.
+	nextProbe := strings.Index(body[start:], probe)
+	if nextProbe == -1 {
+		// Maybe truncated?
+		return unfiltered, -1
+	}
+
+	content := body[start : start+nextProbe]
+	// fmt.Printf("DEBUG: checkLocalUnfiltered content='%s'\n", content)
+
+	// Validate content: it should not contain alphanumeric characters (unless part of entities)
+	// because our payload is only special characters.
+	// This prevents matching content between two separate injections.
+
+	// Simple entity regex
+	entityRegex := regexp.MustCompile(`&[^;]+;`)
+	cleanContent := entityRegex.ReplaceAllString(content, "")
+
+	for _, r := range cleanContent {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			// Found alphanumeric char, likely not our reflection
+			return unfiltered, -1
+		}
+	}
+
+	// Check for each special char in `content`
+	for _, char := range specialChars {
+		if strings.Contains(content, char) {
+			unfiltered = append(unfiltered, char)
+		}
+	}
+
+	return unfiltered, start + nextProbe
 }

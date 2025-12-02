@@ -8,6 +8,11 @@ import (
 )
 
 func TestWAFDetection(t *testing.T) {
+	manager, err := security.NewWAFManager()
+	if err != nil {
+		t.Fatalf("Failed to create WAFManager: %v", err)
+	}
+
 	tests := []struct {
 		name     string
 		headers  http.Header
@@ -87,7 +92,7 @@ func TestWAFDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			waf := security.Detect(tt.headers, "")
+			waf := manager.Detect(tt.headers, "")
 			if waf.Name != tt.expected {
 				t.Errorf("Detect() = %v, want %v", waf.Name, tt.expected)
 			}

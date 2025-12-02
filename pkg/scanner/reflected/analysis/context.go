@@ -1,4 +1,4 @@
-package reflection
+package analysis
 
 import (
 	"strings"
@@ -7,16 +7,19 @@ import (
 )
 
 // DetectContext analyzes the HTML around the probe to determine reflection context
-func DetectContext(body, probe string) models.ReflectionContext {
-	// Find first occurrence of probe
-	index := strings.Index(body, probe)
+func DetectContext(body, probe string, probeIndex int) models.ReflectionContext {
+	// Use provided index or find first occurrence
+	index := probeIndex
+	if index == -1 {
+		index = strings.Index(body, probe)
+	}
 	if index == -1 {
 		return models.ContextUnknown
 	}
 
-	// Get surrounding context (500 chars before and after)
-	start := max(0, index-500)
-	end := min(len(body), index+len(probe)+500)
+	// Get surrounding context (2000 chars before and after)
+	start := max(0, index-2000)
+	end := min(len(body), index+len(probe)+2000)
 	context := body[start:end]
 
 	// Check for AngularJS first (before other checks)
@@ -47,11 +50,14 @@ func DetectContext(body, probe string) models.ReflectionContext {
 		return models.ContextSVG
 	}
 
-	if isInTemplateLiteral(context, probe) {
-		return models.ContextTemplateLiteral
-	}
+	// Removed explicit isInTemplateLiteral check here as it is now handled by analyzeJavaScriptContext
+	// which uses a robust lexer.
 
-	if isJS, jsContext := analyzeJavaScriptContext(context, probe); isJS {
+	// Check for JavaScript context
+	// We calculate the probe index relative to the context window
+	probeInContextIndex := index - start
+	isJS, jsContext := analyzeJavaScriptContext(context, probe, probeInContextIndex)
+	if isJS {
 		return jsContext
 	}
 
@@ -84,20 +90,23 @@ func DetectContext(body, probe string) models.ReflectionContext {
 }
 
 // DetectContextVerbose is like DetectContext but logs detailed information for debugging
-func DetectContextVerbose(body, probe string, logger interface {
+func DetectContextVerbose(body, probe string, probeIndex int, logger interface {
 	VV(string, ...interface{})
 	Detail(string, ...interface{})
 }) models.ReflectionContext {
-	// Find first occurrence of probe
-	index := strings.Index(body, probe)
+	// Use provided index or find first occurrence
+	index := probeIndex
+	if index == -1 {
+		index = strings.Index(body, probe)
+	}
 	if index == -1 {
 		logger.Detail("Type: Unknown (probe not found)")
 		return models.ContextUnknown
 	}
 
-	// Get surrounding context (500 chars before and after)
-	start := max(0, index-500)
-	end := min(len(body), index+len(probe)+500)
+	// Get surrounding context (2000 chars before and after)
+	start := max(0, index-2000)
+	end := min(len(body), index+len(probe)+2000)
 	context := body[start:end]
 
 	// Get snippet around probe (±50 chars)
@@ -149,14 +158,11 @@ func DetectContextVerbose(body, probe string, logger interface {
 		return models.ContextSVG
 	}
 
-	if isInTemplateLiteral(context, probe) {
-		logger.Detail("Type: %s", models.ContextTemplateLiteral)
-		logger.VV("Snippet: %s", snippet)
-		logger.Detail("Reason: Inside JavaScript template literal")
-		return models.ContextTemplateLiteral
-	}
+	// Removed explicit isInTemplateLiteral check here as it is now handled by analyzeJavaScriptContext
 
-	if isJS, jsContext := analyzeJavaScriptContext(context, probe); isJS {
+	// We calculate the probe index relative to the context window
+	probeInContextIndex := index - start
+	if isJS, jsContext := analyzeJavaScriptContext(context, probe, probeInContextIndex); isJS {
 		logger.Detail("Type: %s", jsContext)
 		logger.VV("Snippet: %s", snippet)
 		switch jsContext {

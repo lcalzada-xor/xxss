@@ -1,4 +1,4 @@
-package reflection
+package analysis
 
 import (
 	"testing"
@@ -47,7 +47,7 @@ func TestPanicReproduction(t *testing.T) {
 				}
 			}()
 
-			DetectContext(tt.body, tt.probe)
+			_ = DetectContext(tt.body, tt.probe, -1)
 		})
 	}
 }

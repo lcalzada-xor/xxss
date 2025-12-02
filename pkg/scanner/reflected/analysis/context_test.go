@@ -1,4 +1,4 @@
-package reflection
+package analysis
 
 import (
 	"testing"
@@ -112,9 +112,9 @@ func TestDetectContext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DetectContext(tt.body, tt.probe)
-			if got != tt.expected {
-				t.Errorf("DetectContext() = %v, want %v", got, tt.expected)
+			ctx := DetectContext(tt.body, tt.probe, -1)
+			if ctx != tt.expected {
+				t.Errorf("DetectContext() = %v, want %v", ctx, tt.expected)
 			}
 		})
 	}

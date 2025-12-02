@@ -42,7 +42,7 @@ func TestBlindXSS(t *testing.T) {
 
 	// Let's use Scan() to test integration
 	// We need a parameter to scan.
-	_, err := sc.Scan(context.Background(), targetServer.URL + "/?p=test")
+	_, err := sc.Scan(context.Background(), targetServer.URL+"/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestBlindXSS(t *testing.T) {
 	}))
 	defer targetServer2.Close()
 
-	_, err = sc.Scan(context.Background(), targetServer2.URL + "/?p=test")
+	_, err = sc.Scan(context.Background(), targetServer2.URL+"/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestPolyglotSuggestion(t *testing.T) {
 	client := network.NewClient(2*time.Second, "", 10, 0)
 	sc := scanner.NewScanner(client, map[string]string{})
 
-	results, err := sc.Scan(context.Background(), server.URL + "/?p=test")
+	results, err := sc.Scan(context.Background(), server.URL+"/?p=test")
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestPolyglotContexts(t *testing.T) {
 			name:            "JavaScript Context",
 			response:        `<html><body><script>var x = '%s';</script></body></html>`,
 			expectedContext: models.ContextJSSingleQuote,
-			expectedPayload: "';alert(1)//",
+			expectedPayload: "';alert(1);//",
 		},
 	}
 
@@ -212,6 +212,10 @@ func TestPolyglotContexts(t *testing.T) {
 				if tc.expectedContext == models.ContextAttribute && strings.Contains(param, " ") {
 					param = strings.ReplaceAll(param, " ", "")
 				}
+				// Also filter & to prevent HTML entity obfuscation (forcing the slash payload)
+				if tc.expectedContext == models.ContextAttribute && strings.Contains(param, "&") {
+					param = strings.ReplaceAll(param, "&", "")
+				}
 				w.Header().Set("Content-Type", "text/html")
 				w.Write([]byte(strings.Replace(tc.response, "%s", param, 1)))
 			}))
@@ -220,7 +224,7 @@ func TestPolyglotContexts(t *testing.T) {
 			client := network.NewClient(2*time.Second, "", 10, 0)
 			sc := scanner.NewScanner(client, map[string]string{})
 
-			results, err := sc.Scan(context.Background(), server.URL + "/?p=test")
+			results, err := sc.Scan(context.Background(), server.URL+"/?p=test")
 			if err != nil {
 				t.Fatalf("Scan failed: %v", err)
 			}

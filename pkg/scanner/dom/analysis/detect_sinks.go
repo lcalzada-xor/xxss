@@ -144,6 +144,16 @@ func (ctx *AnalysisContext) HandleAssignExpression(n *ast.AssignExpression, walk
 		}
 	}
 
+	// Special check for jQuery selector sink: $(...) or jQuery(...)
+	// This is often used with location.hash in older jQuery versions
+	if !isSink && (leftName == "$" || leftName == "jQuery") {
+		// This is likely a CallExpression, but here we are in AssignExpression?
+		// Wait, HandleAssignExpression handles assignments.
+		// The vulnerability is $(window).on('hashchange', function(){ var post = $('section... ' + decodeURIComponent(window.location.hash) ...); })
+		// This is a VariableDeclaration or just a CallExpression, not necessarily an Assignment to a sink.
+		// We need to check HandleCallExpression too.
+	}
+
 	if isSink {
 		// FALSE POSITIVE REDUCTION: Navigation Sinks
 		if strings.Contains(leftName, "location") || strings.Contains(leftName, "href") {
@@ -186,6 +196,20 @@ func (ctx *AnalysisContext) isSafeNavigation(n *ast.AssignExpression) bool {
 func (ctx *AnalysisContext) reportSinkFlow(sinkName string, rhs ast.Expression, node ast.Node) {
 	lineNumber := ctx.Program.File.Position(int(node.Idx0())).Line
 
+	// Infer context from sink name
+	context := models.ContextUnknown
+	lowerSink := strings.ToLower(sinkName)
+	if strings.Contains(lowerSink, "innerhtml") || strings.Contains(lowerSink, "outerhtml") || strings.Contains(lowerSink, "document.write") || strings.Contains(lowerSink, "insertadjacenthtml") {
+		context = models.ContextHTML
+	} else if strings.Contains(lowerSink, "eval") || strings.Contains(lowerSink, "settimeout") || strings.Contains(lowerSink, "setinterval") || strings.Contains(lowerSink, "function") {
+		context = models.ContextJSRaw
+	} else if strings.Contains(lowerSink, "location") || strings.Contains(lowerSink, "href") || strings.Contains(lowerSink, "src") {
+		context = models.ContextURL
+	} else if strings.Contains(lowerSink, "html") || strings.Contains(lowerSink, "append") || strings.Contains(lowerSink, "prepend") {
+		// jQuery sinks
+		context = models.ContextHTML
+	}
+
 	if src, isSrc := ctx.isSource(rhs); isSrc {
 		ctx.Logger.VV("DOM: SINK DETECTED! %s = %s (line %d)", sinkName, src, lineNumber)
 		ctx.AddFinding(models.DOMFinding{
@@ -196,6 +220,7 @@ func (ctx *AnalysisContext) reportSinkFlow(sinkName string, rhs ast.Expression, 
 			Confidence:  "HIGH",
 			Description: fmt.Sprintf("Direct flow: Source '%s' flows into Sink '%s'", src, sinkName),
 			Evidence:    ctx.GetSnippet(node),
+			Context:     context,
 		})
 	} else if id, ok := rhs.(*ast.Identifier); ok {
 		if src, ok := ctx.LookupTaint(string(id.Name)); ok {
@@ -208,6 +233,7 @@ func (ctx *AnalysisContext) reportSinkFlow(sinkName string, rhs ast.Expression, 
 				Confidence:  "HIGH",
 				Description: fmt.Sprintf("Tainted variable '%s' (from %s) flows into Sink '%s'", string(id.Name), src, sinkName),
 				Evidence:    ctx.GetSnippet(node),
+				Context:     context,
 			})
 		}
 	} else if dot, ok := rhs.(*ast.DotExpression); ok {
@@ -222,6 +248,7 @@ func (ctx *AnalysisContext) reportSinkFlow(sinkName string, rhs ast.Expression, 
 					Confidence:  "HIGH",
 					Description: fmt.Sprintf("Tainted variable '%s' (property of %s) flows into Sink '%s'", string(dot.Identifier.Name), src, sinkName),
 					Evidence:    ctx.GetSnippet(node),
+					Context:     context,
 				})
 			}
 		}

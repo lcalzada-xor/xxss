@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflection"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
+	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflected/analysis"
 )
 
 func TestAngularJSDetection(t *testing.T) {
@@ -51,7 +52,7 @@ func TestAngularJSDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			context := reflection.DetectContext(tt.body, tt.probe)
+			context := analysis.DetectContext(tt.body, tt.probe, -1)
 			if context != tt.expected {
 				t.Errorf("DetectContext() = %v, want %v", context, tt.expected)
 			}
@@ -84,7 +85,7 @@ func TestAngularJSPayloads(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			payload := reflection.GetSuggestedPayload(models.ContextAngular, tt.unfiltered)
+			payload := payloads.GenerateReflectedPayload(models.ContextAngular, tt.unfiltered, nil)
 			if payload == "" {
 				t.Error("GetSuggestedPayload() returned empty string")
 			}
