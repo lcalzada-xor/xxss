@@ -3,7 +3,7 @@ package analysis
 import (
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
 )
 
 func TestAnalyzeJavaScriptContext_ScriptBreakout(t *testing.T) {

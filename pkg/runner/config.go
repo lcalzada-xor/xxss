@@ -7,10 +7,14 @@ import (
 // Options holds all configuration options for the runner
 type Options struct {
 	// Scanning
-	Concurrency int
-	Timeout     time.Duration
-	Proxy       string
-	Headers     []string
+	Concurrency  int
+	Timeout      time.Duration
+	Proxy        string
+	Headers      []string
+	RateLimit    int
+	InputFile    string
+	OutputFile   string
+	PayloadsFile string
 
 	// Request Configuration
 	Method      string

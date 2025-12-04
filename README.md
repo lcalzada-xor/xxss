@@ -1,26 +1,43 @@
-# xxss - High-Performance Reflected XSS Scanner
+# xxss - Advanced Cross-Site Scripting (XSS) Scanner & Vulnerability Detection Tool
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Go Version](https://img.shields.io/badge/go-1.21%2B-cyan)
 ![Bug Bounty](https://img.shields.io/badge/Bug%20Bounty-Ready-red)
+![Go Report Card](https://goreportcard.com/badge/github.com/lcalzada-xor/xxss)
 
 ---
-<img width="372" height="173" alt="imagen" src="https://github.com/user-attachments/assets/57a5b9b2-8120-486a-b4bf-a936a7638424" />
+<div align="center">
+  <img width="372" height="173" alt="xxss XSS Scanner CLI Demo - Automated Vulnerability Detection" src="https://github.com/user-attachments/assets/57a5b9b2-8120-486a-b4bf-a936a7638424" />
+</div>
 
 ---
 
-**xxss** is a blazing fast, modular, and scalable **Reflected Cross-Site Scripting (XSS) scanner** written in Go. Designed for **bug bounty hunters** and **AppSec engineers**, it serves as a **high-speed screening tool** to identify potentially vulnerable parameters before deeper analysis with tools like `dalfox`.
+**xxss** is a blazing fast, modular, and scalable **Cross-Site Scripting (XSS) scanner** and **vulnerability detection tool** written in **Go (Golang)**. Designed for **bug bounty hunters**, **penetration testers**, and **AppSec engineers**, it serves as a **high-speed screening tool** to identify potentially vulnerable parameters in web applications before deeper analysis.
+
+Ideal for **Red Teaming** and **Automated Security Testing**, `xxss` bridges the gap between speed and accuracy.
 
 Unlike traditional scanners that send dozens of requests per parameter, `xxss` uses a smart **single-shot probing strategy**, reducing traffic by over **90%** (approx. 1 request per reflected parameter). It prioritizes **recall over precision** - better to report a potential vulnerability than miss one.
+
+## Table of Contents
+
+- [Features](#features)
+- [Detected Vulnerabilities](#-detected-vulnerabilities)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Examples](#-examples)
+- [Output Format](#-output-format)
+- [Contributing](#-contributing)
 
 ## Features
 
 - **Fast & Efficient**: Optimized for speed with concurrency control.
 - **Smart Detection**: 
     - **Reflected XSS**: Context-aware analysis (HTML, JS, Attribute) to reduce false positives.
-    - **DOM XSS (v2.0 Engine)**: 
-        - **AST-Based Analysis**: Uses Abstract Syntax Tree to understand code structure, not just regex.
-        - **Scope-Aware Taint Tracking**: Tracks data flow across variables and functions.
+    - **DOM XSS (v3.0 Hybrid Engine)**: 
+        - **AST-Based Taint Analysis**: Full Control Flow Graph (CFG) and Data Flow Analysis.
+        - **Deobfuscation Engine ("Slice & Emulate")**: Executes suspicious code slices in a lightweight VM (`goja`) with **Mock DOM**.
+        - **Zero False Positives**: Verifies payloads at runtime using "Sink Traps" (e.g., hooking `eval`, `document.write`).
+        - **Scope-Aware**: Tracks data flow across variables, functions, and closures.
         - **Modern Vectors**: Detects Navigation API, jQuery sinks, and Prototype Pollution.
         - **Sanitization Aware**: Recognizes `DOMPurify` and other sanitizers to prevent false alarms.
 - **Deep Scanning**: Can fetch and analyze external JavaScript files (`--deep-dom`).
@@ -46,8 +63,8 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
   - **Header Injection**: Scans HTTP headers (User-Agent, Referer, etc.) for XSS
   - **Body Parameters**: Form-urlencoded and JSON support
 - **Flexible Output**:
-  - **URL** (default): Pipe-friendly for tools like `dalfox`
-  - **Human**: Pretty-printed findings with context and payloads
+  - **URL**: Pipe-friendly for tools like `dalfox`
+  - **Human** (default): Pretty-printed findings with context and payloads
   - **JSON**: Structured output for automation
 - **Customizable**:
   - Filter reflected characters (`-allow`, `-ignore`)
@@ -64,11 +81,13 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
 - **Attribute Context**: Injections into event handlers (`onload`, `onerror`) or critical attributes (`href`, `src`).
 - **JavaScript Context**: Injections into script blocks, supporting single quotes, double quotes, template literals, and raw code.
 
-### DOM-based XSS (v2.0 Engine)
+### DOM-based XSS (v3.0 Hybrid Engine)
+- **Hybrid Analysis**: Combines fast static Taint Analysis with dynamic Emulation for maximum precision.
+- **Deobfuscation**: Resolves obfuscated payloads (e.g., `eval(atob(...))`, `window['e'+'val']`) by executing them in a sandboxed environment.
 - **Source -> Sink Flows**: Tracks tainted data from sources (e.g., `location.search`) to dangerous sinks (e.g., `innerHTML`).
 - **Protocol Injection**: Detects `javascript:` pseudo-protocol usage in `href`/`src` attributes.
-- **DOM Clobbering**: Identifies attempts to shadow global variables via HTML attributes. **(New in v2.3.0: Reduced False Positives)**
-- **Prototype Pollution**: Detects assignments to `__proto__`, `prototype`, or `constructor`. **(New in v2.3.0: Improved Accuracy)**
+- **DOM Clobbering**: Identifies attempts to shadow global variables via HTML attributes.
+- **Prototype Pollution**: Detects assignments to `__proto__`, `prototype`, or `constructor`.
 - **Framework Specifics**: Checks for React's `dangerouslySetInnerHTML` and Angular's `v-html` / `ng-bind-html`.
 - **Web Workers**: Detects dangerous `importScripts` calls.
 
@@ -78,8 +97,16 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
 
 ## Installation
 
+### From Binary (Recommended)
 ```bash
-go install github.com/lcalzada-xor/xxss/v2/cmd/xxss@latest
+go install github.com/lcalzada-xor/xxss/v3/cmd/xxss@latest
+```
+
+### Build from Source
+```bash
+git clone https://github.com/lcalzada-xor/xxss.git
+cd xxss
+go build -o xxss cmd/xxss/main.go
 ```
 
 | Flag | Short | Description | Default |
@@ -99,7 +126,7 @@ go install github.com/lcalzada-xor/xxss/v2/cmd/xxss@latest
 | `--content-type` | `-ct` | Content-Type for request body | `application/x-www-form-urlencoded` |
 | `--scan-headers` | `-sh` | Scan HTTP headers for XSS | `false` |
 | `--headers-list` | `-hl` | Headers to scan (comma-separated) | `User-Agent,Referer,X-Forwarded-For,X-Real-IP,X-Forwarded-Host,X-Original-URL,Accept-Language` |
-| `--output` | `-o` | Output format: url, human, json | `url` |
+| `--output` | `-o` | Output format: url, human, json | `human` |
 | `--deep-dom` | | Enable Deep DOM XSS scanning (fetch external JS) | `false` |
 | `--detect-libraries` | `-dt` | Detect technologies only (no XSS scan) | `false` |
 

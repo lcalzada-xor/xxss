@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/dom"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
+	"github.com/lcalzada-xor/xxss/v3/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/dom"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/payloads"
 )
 
 func TestMXSSDetection(t *testing.T) {

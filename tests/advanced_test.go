@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/network"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/network"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner"
 )
 
 // TestBlindXSS verifies that blind XSS payloads are injected and trigger callbacks

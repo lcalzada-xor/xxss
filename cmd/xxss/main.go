@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/config"
-	"github.com/lcalzada-xor/xxss/v2/pkg/runner"
+	"github.com/lcalzada-xor/xxss/v3/pkg/config"
+	"github.com/lcalzada-xor/xxss/v3/pkg/runner"
 )
 
 // headerFlags allows setting multiple headers
@@ -28,6 +29,9 @@ func main() {
 	// Define flags with both short and long names
 	flag.IntVar(&options.Concurrency, "c", config.DefaultConcurrency, "Concurrency level")
 	flag.IntVar(&options.Concurrency, "concurrency", config.DefaultConcurrency, "Concurrency level")
+
+	flag.IntVar(&options.RateLimit, "rl", 0, "Rate limit (requests per second)")
+	flag.IntVar(&options.RateLimit, "rate-limit", 0, "Rate limit (requests per second)")
 
 	flag.DurationVar(&options.Timeout, "t", config.DefaultTimeout, "Request timeout")
 	flag.DurationVar(&options.Timeout, "timeout", config.DefaultTimeout, "Request timeout")
@@ -78,11 +82,22 @@ func main() {
 	flag.StringVar(&options.HeaderList, "hl", defaultHeaders, "Headers to scan (comma-separated)")
 	flag.StringVar(&options.HeaderList, "headers-list", defaultHeaders, "Headers to scan")
 
-	flag.StringVar(&options.OutputFormat, "o", "url", "Output format: url, human, json")
-	flag.StringVar(&options.OutputFormat, "output", "url", "Output format: url, human, json")
+	flag.StringVar(&options.OutputFormat, "o", "human", "Output format: url, human, json")
+	flag.StringVar(&options.OutputFormat, "output", "human", "Output format: url, human, json")
 
 	flag.StringVar(&options.BlindURL, "b", "", "Blind XSS callback URL (e.g. https://xss.hunter)")
+
 	flag.StringVar(&options.BlindURL, "blind", "", "Blind XSS callback URL (e.g. https://xss.hunter)")
+
+	flag.StringVar(&options.InputFile, "l", "", "Input file containing URLs (default: stdin)")
+	flag.StringVar(&options.InputFile, "list", "", "Input file containing URLs (default: stdin)")
+
+	flag.StringVar(&options.OutputFile, "w", "", "Output file to write results (default: stdout)")
+
+	flag.StringVar(&options.OutputFile, "write", "", "Output file to write results (default: stdout)")
+
+	flag.StringVar(&options.PayloadsFile, "P", "", "Custom payloads JSON file")
+	flag.StringVar(&options.PayloadsFile, "payloads", "", "Custom payloads JSON file")
 
 	flag.BoolVar(&options.NoDOM, "no-dom", false, "Disable DOM XSS scanning (static analysis)")
 
@@ -110,9 +125,15 @@ USAGE:
 
 SCANNING:
   -c,  --concurrency int     Number of concurrent workers (default %d)
+  -rl, --rate-limit int      Rate limit (requests per second)
   -t,  --timeout duration    Request timeout (default %s)
   -x,  --proxy string        Proxy URL (default http://127.0.0.1:8080 if flag is present without value)
   -H,  --header string       Custom header (e.g. 'Cookie: session=123')
+
+
+  -l,  --list string         Input file containing URLs (default: stdin)
+  -w,  --write string        Output file to write results (default: stdout)
+  -P,  --payloads string     Custom payloads JSON file
 
 REQUEST CONFIGURATION:
   -X,  --method string       HTTP method (GET, POST, PUT, PATCH) (default "GET")
@@ -129,7 +150,7 @@ SCOPE & FILTERS:
   -hi, --http-ignore string   Comma-separated list of ignored HTTP status codes (e.g. 403,404)
 
 OUTPUT:
-  -o,  --output string       Output format: url, human, json (default "url")
+  -o,  --output string       Output format: url, human, json (default "human")
   -v,  --verbose             Verbose output (show progress and details)
   -vv                        Very verbose output (show detailed debugging info)
   -s,  --silent              Silent mode (suppress banner and errors)
@@ -192,7 +213,31 @@ EXAMPLES:
 	// Assign headers to options
 	options.Headers = headers
 
+	// Handle Input
+	var input io.Reader = os.Stdin
+	if options.InputFile != "" {
+		f, err := os.Open(options.InputFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error opening input file: %v\n", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		input = f
+	}
+
+	// Handle Output
+	var output io.Writer = os.Stdout
+	if options.OutputFile != "" {
+		f, err := os.Create(options.OutputFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating output file: %v\n", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		output = f
+	}
+
 	// Run the application
-	r := runner.NewRunner(options)
+	r := runner.NewRunner(options, input, output)
 	r.Run()
 }

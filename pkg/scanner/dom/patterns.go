@@ -18,6 +18,8 @@ var sourcePatterns = []string{
 	`sessionStorage`,
 	`navigation\.currentEntry`, // Modern Navigation API
 	`document\.baseURI`,
+	`event\.data`, // postMessage
+	`e\.data`,     // postMessage (common alias)
 }
 
 // Sinks: dangerous execution points
@@ -62,4 +64,8 @@ var sinkPatterns = []string{
 	`\$sce\.trustAsHtml\(`,
 	// React Sinks
 	`dangerouslySetInnerHTML`,
+	// Prototype Pollution
+	`__proto__`,
+	`prototype`,
+	`constructor`,
 }

@@ -1,8 +1,8 @@
 package payloads
 
 import (
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/technologies"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/technologies"
 )
 
 // GenerationOptions defines the parameters for payload generation

@@ -3,9 +3,9 @@ package tests
 import (
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflected/analysis"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/payloads"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/reflected/analysis"
 )
 
 func TestTagNameContext(t *testing.T) {

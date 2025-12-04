@@ -3,7 +3,7 @@ package config
 import "time"
 
 // Version is the current version of xxss
-const Version = "v2.5.0"
+const Version = "v3.0.0"
 
 // Author is the author of the tool
 const Author = "@lcalzada-xor"

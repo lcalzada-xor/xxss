@@ -1,14 +1,14 @@
 package payloads
 
-import "github.com/lcalzada-xor/xxss/v2/pkg/models"
+import "github.com/lcalzada-xor/xxss/v3/pkg/models"
 
 // PayloadVector represents a single XSS payload template
 type PayloadVector struct {
-	Content       string
-	Context       models.ReflectionContext // Primary context where this is effective
-	Tags          []string                 // Tags for filtering (e.g., "blind", "reflected", "svg", "angular")
-	Description   string
-	RequiredChars []string // Characters required for this payload to work
+	Content       string                   `json:"content"`
+	Context       models.ReflectionContext `json:"context"` // Primary context where this is effective
+	Tags          []string                 `json:"tags"`    // Tags for filtering (e.g., "blind", "reflected", "svg", "angular")
+	Description   string                   `json:"description"`
+	RequiredChars []string                 `json:"required_chars"` // Characters required for this payload to work
 }
 
 // Common Payloads

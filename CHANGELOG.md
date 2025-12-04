@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.0.0] - 2025-12-04
+
+### Added
+- **DOM Scanner Overhaul**: Replaced the legacy regex-based DOM scanner with a robust AST-based analysis engine. This allows for accurate taint tracking, scope awareness, and significantly reduced false positives.
+- **Emulation Engine**: Integrated a JavaScript emulation engine (powered by `goja`) to handle obfuscated code and detect vulnerabilities that only manifest at runtime.
+- **Evidence Population**: Findings now include precise code snippets (`Evidence`) demonstrating the vulnerability flow, making triage much easier.
+- **Advanced Taint Tracking**: Support for complex data structures including `ObjectLiteral`s, `LexicalDeclaration`s (const/let), and recursive evaluation of nested properties.
+
+### Changed
+- **Test Suite**: Comprehensive update to the test suite with new test cases for modern frameworks (React, Angular) and complex scenarios (DOM Clobbering, Prototype Pollution).
+- **Performance**: Optimized AST traversal and added caching for external scripts in `ScanDeepDOM`.
+
+### Fixed
+- **ObjectLiteral Handling**: Fixed a critical issue where sinks defined inside object literals (e.g., `dangerouslySetInnerHTML`) were missed.
+- **Global Variable Shadowing**: Improved accuracy of DOM Clobbering detection by correctly tracking global variable access.
+
 ## [v2.6.0] - 2025-12-04
 
 ### Added

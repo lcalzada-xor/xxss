@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/dop251/goja/ast"
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
 )
 
 // HandleCallExpression checks function calls for sinks and event listeners.

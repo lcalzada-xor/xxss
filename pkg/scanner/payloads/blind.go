@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/network"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/network"
 )
 
 // GenerateUniqueCallback creates a unique callback URL with identifier

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
 )
 
 // TestPayloadRanking verifies that payloads are recommended in the correct order

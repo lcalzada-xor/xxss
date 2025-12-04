@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/network"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflected"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/technologies"
+	"github.com/lcalzada-xor/xxss/v3/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/network"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/reflected"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/technologies"
 )
 
 func TestReflectedScanner_Integration(t *testing.T) {

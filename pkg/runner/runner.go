@@ -3,7 +3,9 @@ package runner
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/signal"
@@ -12,22 +14,29 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/config"
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/network"
-	"github.com/lcalzada-xor/xxss/v2/pkg/output"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner"
+	"github.com/lcalzada-xor/xxss/v3/pkg/config"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/network"
+	"github.com/lcalzada-xor/xxss/v3/pkg/output"
+
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/payloads"
 )
 
 // Runner handles the execution of the scanning process
 type Runner struct {
 	options *Options
+	input   io.Reader
+	output  io.Writer
 }
 
 // NewRunner creates a new Runner instance
-func NewRunner(options *Options) *Runner {
+// NewRunner creates a new Runner instance
+func NewRunner(options *Options, input io.Reader, output io.Writer) *Runner {
 	return &Runner{
 		options: options,
+		input:   input,
+		output:  output,
 	}
 }
 
@@ -40,6 +49,28 @@ func (r *Runner) Run() {
 	}
 	if r.options.VeryVerbose {
 		verboseLevel = 2
+	}
+
+	// Load Custom Payloads
+	if r.options.PayloadsFile != "" {
+		content, err := os.ReadFile(r.options.PayloadsFile)
+		if err != nil {
+			if !r.options.Silent {
+				fmt.Fprintf(os.Stderr, "Error reading payloads file: %v\n", err)
+			}
+			os.Exit(1)
+		}
+		var custom []payloads.PayloadVector
+		if err := json.Unmarshal(content, &custom); err != nil {
+			if !r.options.Silent {
+				fmt.Fprintf(os.Stderr, "Error parsing payloads file: %v\n", err)
+			}
+			os.Exit(1)
+		}
+		payloads.Vectors = append(payloads.Vectors, custom...)
+		if verboseLevel >= 1 && !r.options.Silent {
+			fmt.Fprintf(os.Stderr, "[*] Loaded %d custom payloads\n", len(custom))
+		}
 	}
 
 	// Parse character filters
@@ -101,7 +132,7 @@ func (r *Runner) Run() {
 	}()
 
 	// Create HTTP client with optimized connection pooling
-	client := network.NewClient(r.options.Timeout, r.options.Proxy, r.options.Concurrency, 0)
+	client := network.NewClient(r.options.Timeout, r.options.Proxy, r.options.Concurrency, float64(r.options.RateLimit))
 
 	if r.options.BlindURL != "" {
 		// Validate blind URL
@@ -373,13 +404,13 @@ func (r *Runner) Run() {
 						// Output based on selected format
 						if r.options.OutputFormat == "url" {
 							if !urlPrinted {
-								fmt.Println(res.URL)
+								fmt.Fprintln(r.output, res.URL)
 								urlPrinted = true
 							}
 						} else {
 							output := output.Format(res, r.options.OutputFormat)
 							if output != "" {
-								fmt.Println(output)
+								fmt.Fprintln(r.output, output)
 							}
 						}
 					}
@@ -405,7 +436,7 @@ func (r *Runner) Run() {
 							singleResult := []output.TechResult{{URL: url, Technologies: techs}}
 							out := output.FormatAllTechnologies(singleResult, "human")
 							if out != "" {
-								fmt.Println(out)
+								fmt.Fprintln(r.output, out)
 							}
 						}
 					}
@@ -414,8 +445,8 @@ func (r *Runner) Run() {
 		}()
 	}
 
-	// Read from Stdin
-	scanner := bufio.NewScanner(os.Stdin)
+	// Read from Input
+	scanner := bufio.NewScanner(r.input)
 	go func() {
 		for scanner.Scan() {
 			if ctx.Err() != nil {
@@ -444,7 +475,7 @@ func (r *Runner) Run() {
 	if r.options.DetectLibraries && len(allTechResults) > 0 {
 		out := output.FormatAllTechnologies(allTechResults, r.options.OutputFormat)
 		if out != "" {
-			fmt.Println(out)
+			fmt.Fprintln(r.output, out)
 		}
 	}
 

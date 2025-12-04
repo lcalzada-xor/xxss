@@ -10,9 +10,9 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/dom/analysis"
+	"github.com/lcalzada-xor/xxss/v3/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/dom/taint"
 )
 
 // DOMScanner handles static analysis for DOM XSS.
@@ -170,18 +170,38 @@ func (ds *DOMScanner) ScanDOM(body string) []models.DOMFinding {
 
 	// Analyze JS Blocks
 	allGlobalAccesses := make(map[string]bool)
+
+	// Prepare patterns for Taint Engine
+	var sourcePatterns []string
+	for _, p := range ds.sources {
+		sourcePatterns = append(sourcePatterns, p.String())
+	}
+	var sinkPatterns []string
+	for _, p := range ds.sinks {
+		sinkPatterns = append(sinkPatterns, p.String())
+	}
+
 	for i, jsCode := range jsCodeBlocks {
 		ds.logger.VV("Parsing JS block %d (%d bytes)", i+1, len(jsCode))
-		scriptFindings, globalAccesses := analysis.AnalyzeJS(jsCode, ds.sources, ds.sinks, ds.logger)
 
-		for i := range scriptFindings {
-			ctx := scriptFindings[i].Context
-			if ctx == "" {
-				ctx = models.ContextUnknown
-			}
-			scriptFindings[i].SuggestedPayload = GenerateDOMPayload(scriptFindings[i].Sink, ctx, nil)
+		taintFindings, globalAccesses, err := taint.Analyze(jsCode, sourcePatterns, sinkPatterns)
+		if err != nil {
+			ds.logger.VV("Taint analysis failed: %v", err)
+			continue
 		}
-		findings = append(findings, scriptFindings...)
+
+		for _, tf := range taintFindings {
+			findings = append(findings, models.DOMFinding{
+				Source:           tf.Source,
+				Sink:             tf.Sink,
+				LineNumber:       tf.Line,
+				Confidence:       tf.Confidence,
+				Description:      fmt.Sprintf("Taint flow detected from %s to %s", tf.Source, tf.Sink),
+				Evidence:         tf.Evidence,
+				Context:          models.ContextUnknown,
+				SuggestedPayload: GenerateDOMPayload(tf.Sink, models.ContextUnknown, nil),
+			})
+		}
 
 		for k, v := range globalAccesses {
 			allGlobalAccesses[k] = v
@@ -224,15 +244,51 @@ func (ds *DOMScanner) ScanDOM(body string) []models.DOMFinding {
 
 // analyzeJSContent is a helper for raw JS files
 func (ds *DOMScanner) analyzeJSContent(jsCode string) []models.DOMFinding {
-	scriptFindings, _ := analysis.AnalyzeJS(jsCode, ds.sources, ds.sinks, ds.logger)
-	for i := range scriptFindings {
-		ctx := scriptFindings[i].Context
-		if ctx == "" {
-			ctx = models.ContextUnknown
-		}
-		scriptFindings[i].SuggestedPayload = GenerateDOMPayload(scriptFindings[i].Sink, ctx, nil)
+	var findings []models.DOMFinding
+
+	// Prepare patterns
+	var sourcePatterns []string
+	for _, p := range ds.sources {
+		sourcePatterns = append(sourcePatterns, p.String())
 	}
-	return deduplicateFindings(scriptFindings)
+	var sinkPatterns []string
+	for _, p := range ds.sinks {
+		sinkPatterns = append(sinkPatterns, p.String())
+	}
+
+	taintFindings, _, err := taint.Analyze(jsCode, sourcePatterns, sinkPatterns)
+	if err != nil {
+		ds.logger.VV("Taint analysis failed: %v", err)
+		return findings
+	}
+
+	for _, tf := range taintFindings {
+		findings = append(findings, models.DOMFinding{
+			Source:           tf.Source,
+			Sink:             tf.Sink,
+			LineNumber:       tf.Line,
+			Confidence:       tf.Confidence,
+			Description:      fmt.Sprintf("Taint flow detected from %s to %s", tf.Source, tf.Sink),
+			Evidence:         tf.Evidence,
+			Context:          mapSinkToContext(tf.Sink),
+			SuggestedPayload: GenerateDOMPayload(tf.Sink, mapSinkToContext(tf.Sink), nil),
+		})
+	}
+
+	return deduplicateFindings(findings)
+}
+
+func mapSinkToContext(sink string) models.ReflectionContext {
+	if strings.Contains(sink, "innerHTML") || strings.Contains(sink, "outerHTML") || strings.Contains(sink, "document.write") {
+		return models.ContextHTML
+	}
+	if strings.Contains(sink, "eval") || strings.Contains(sink, "setTimeout") || strings.Contains(sink, "setInterval") || strings.Contains(sink, "Function") {
+		return models.ContextJavaScript
+	}
+	if strings.Contains(sink, "location") || strings.Contains(sink, "href") || strings.Contains(sink, "src") {
+		return models.ContextURL
+	}
+	return models.ContextUnknown
 }
 
 // deduplicateFindings removes duplicate findings based on Source, Sink, and Description

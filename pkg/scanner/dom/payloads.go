@@ -3,9 +3,9 @@ package dom
 import (
 	"strings"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/technologies"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/payloads"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/technologies"
 )
 
 // GenerateDOMPayload suggests a payload based on the sink type and context
@@ -27,7 +27,7 @@ func GenerateDOMPayload(sink string, context models.ReflectionContext, techs []*
 
 	// Special handling for innerHTML/outerHTML/jQuery to avoid <script> tags which don't execute
 	lowerSink := strings.ToLower(sink)
-	if strings.Contains(lowerSink, "innerhtml") || strings.Contains(lowerSink, "outerhtml") || sink == "$" || sink == "jQuery" {
+	if strings.Contains(lowerSink, "innerhtml") || strings.Contains(lowerSink, "outerhtml") || strings.Contains(lowerSink, ".html") || sink == "$" || sink == "jQuery" {
 		context = models.ContextHTML
 		// Iterate over vectors to find a non-script payload
 		for _, v := range payloads.Vectors {

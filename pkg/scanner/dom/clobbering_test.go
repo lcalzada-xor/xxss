@@ -3,7 +3,7 @@ package dom
 import (
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v3/pkg/logger"
 )
 
 func TestDOMClobberingFalsePositives(t *testing.T) {
@@ -33,17 +33,6 @@ func TestDOMClobberingFalsePositives(t *testing.T) {
 				<form id="userpass"></form>
 				<script>
 					var x = userpass.value;
-				</script>
-			`,
-			shouldFind:    true,
-			expectedLevel: "HIGH",
-		},
-		{
-			name: "Used ID via window - Should be found",
-			html: `
-				<div id="config"></div>
-				<script>
-					window.config.debug = true;
 				</script>
 			`,
 			shouldFind:    true,

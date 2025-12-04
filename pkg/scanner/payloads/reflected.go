@@ -3,8 +3,8 @@ package payloads
 import (
 	"strings"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/technologies"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/technologies"
 )
 
 // GenerateReflectedPayload constructs a context-specific payload based on allowed characters.

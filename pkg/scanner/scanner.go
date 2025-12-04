@@ -9,15 +9,15 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/network"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/blind"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/dom"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflected"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/security"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/technologies"
+	"github.com/lcalzada-xor/xxss/v3/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/network"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/blind"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/dom"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/payloads"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/reflected"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/security"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/technologies"
 )
 
 // Scanner is the main struct for the XSS scanner.

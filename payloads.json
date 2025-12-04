@@ -1,0 +1,14 @@
+[
+    {
+        "content": "<custom_payload>",
+        "context": "html",
+        "tags": [
+            "custom"
+        ],
+        "description": "Custom payload test",
+        "required_chars": [
+            "<",
+            ">"
+        ]
+    }
+]

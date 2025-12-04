@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/security"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/security"
 )
 
 func TestWAFDetection(t *testing.T) {

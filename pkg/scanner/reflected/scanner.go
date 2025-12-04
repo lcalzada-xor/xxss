@@ -13,13 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
-	"github.com/lcalzada-xor/xxss/v2/pkg/network"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/payloads"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/reflected/analysis"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/security"
-	"github.com/lcalzada-xor/xxss/v2/pkg/scanner/technologies"
+	"github.com/lcalzada-xor/xxss/v3/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/network"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/payloads"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/reflected/analysis"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/security"
+	"github.com/lcalzada-xor/xxss/v3/pkg/scanner/technologies"
 )
 
 // Scanner handles reflected XSS scanning

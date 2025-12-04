@@ -4,8 +4,8 @@ import (
 	"regexp"
 
 	"github.com/dop251/goja/ast"
-	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
-	"github.com/lcalzada-xor/xxss/v2/pkg/models"
+	"github.com/lcalzada-xor/xxss/v3/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v3/pkg/models"
 )
 
 // AnalysisContext holds the state for a single JS analysis run.

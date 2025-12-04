@@ -3,7 +3,7 @@ package dom
 import (
 	"testing"
 
-	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
+	"github.com/lcalzada-xor/xxss/v3/pkg/logger"
 )
 
 func TestEvidencePopulation(t *testing.T) {
