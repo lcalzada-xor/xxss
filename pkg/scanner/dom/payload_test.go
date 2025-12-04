@@ -16,7 +16,7 @@ func TestDOMScanner_PayloadGeneration(t *testing.T) {
 		{
 			name:            "innerHTML Sink",
 			body:            "<script>document.body.innerHTML = location.search;</script>",
-			expectedPayload: "<script>alert(1)</script>", // ContextHTML -> <script>alert(1)</script> or <img src=x onerror=alert(1)>
+			expectedPayload: "<svg onload=alert(1)>", // ContextHTML -> <svg onload=alert(1)>
 		},
 		{
 			name:            "eval Sink",
@@ -26,7 +26,7 @@ func TestDOMScanner_PayloadGeneration(t *testing.T) {
 		{
 			name:            "location Sink",
 			body:            "<script>location.href = location.search;</script>",
-			expectedPayload: "javascript:alert(1)", // ContextURL -> javascript:alert(1)
+			expectedPayload: "jaVasCript:/*-/*`/*\\`/*'/*\"/**/(/* */oNcliCk=alert(1) )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert(1)//>\\x3e", // ContextURL -> Polyglot
 		},
 		{
 			name:            "javascript: Protocol",
@@ -36,7 +36,7 @@ func TestDOMScanner_PayloadGeneration(t *testing.T) {
 		{
 			name:            "jQuery Sink",
 			body:            "<script>$('#test').html(location.hash);</script>",
-			expectedPayload: "<script>alert(1)</script>", // ContextHTML -> <script>alert(1)</script>
+			expectedPayload: "<svg onload=alert(1)>", // ContextHTML -> <svg onload=alert(1)>
 		},
 	}
 

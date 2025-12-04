@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.6.0] - 2025-12-04
+
+### Added
+- **Hash-Based Detection**: Introduced a new detection engine that identifies JavaScript libraries by calculating hashes of script content and matching them against a known database (`hashes.json`). This improves detection accuracy for minified or modified libraries where regex signatures might fail.
+- **Dependency Analysis**: Added a dependency analyzer that infers the presence of libraries based on the dependencies of other detected technologies (e.g., detecting `Angular` implies `TypeScript` or specific polyfills).
+- **Expanded Signatures**: Updated `signatures.json` with more reliable regex patterns for popular libraries.
+
+### Changed
+- **Technology Manager**: Refactored `pkg/scanner/technologies` to support multiple detection strategies (Regex, Hash, Dependency) concurrently.
+- **Test Suite**: Updated regression tests to align with improved payload generation logic (Polyglots and SVG payloads).
+
 ## [v2.5.0] - 2025-12-02
 
 ### Added

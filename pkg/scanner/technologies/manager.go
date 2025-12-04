@@ -12,6 +12,7 @@ func NewManager() *Manager {
 	return &Manager{
 		Detectors: []Detector{
 			NewSignatureDetector(DefaultSignatures()),
+			NewHashDetector(DefaultHashes()),
 		},
 	}
 }
@@ -36,5 +37,10 @@ func (m *Manager) DetectAll(body string) []*Technology {
 	}
 
 	wg.Wait()
+
+	// Post-processing: Analyze dependencies
+	analyzer := NewDependencyAnalyzer(DefaultDependencies())
+	allTechnologies = analyzer.Analyze(allTechnologies)
+
 	return allTechnologies
 }

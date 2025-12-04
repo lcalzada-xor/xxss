@@ -39,7 +39,7 @@ Unlike traditional scanners that send dozens of requests per parameter, `xxss` u
   - **Security Headers**: Analyzes CSP and other headers to determine exploitability
   - **HTML Encoding Detection**: Identifies when special characters are encoded
 - **Library Detection**:
-  - **Signature-Based**: Identifies 15+ libraries (React, Vue, Angular, jQuery, Bootstrap, etc.)
+  - **Multi-Engine**: Combines **Regex Signatures**, **Hash-Based Detection**, and **Dependency Analysis** for high accuracy.
   - **Fast Mode**: Use `-dt` to detect technologies without running a full XSS scan
 - **Comprehensive Scanning**:
   - **GET/POST/PUT/PATCH**: Support for various HTTP methods

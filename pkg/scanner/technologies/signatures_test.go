@@ -43,6 +43,18 @@ func TestSignatureDetector(t *testing.T) {
 				`Bootstrap v([\d\.]+)`,
 			},
 		},
+		{
+			Name: "DOMPurify",
+			ContentPatterns: []string{
+				`var DOMPurify`,
+			},
+		},
+		{
+			Name: "Showdown",
+			ContentPatterns: []string{
+				`new showdown\.Converter`,
+			},
+		},
 	}
 	detector := NewSignatureDetector(signatures)
 
@@ -85,6 +97,27 @@ func TestSignatureDetector(t *testing.T) {
 			name:       "Unknown Library",
 			body:       `<script src="unknown.js"></script>`,
 			shouldFind: false,
+		},
+		{
+			name:         "React Comment Version",
+			body:         `/*! React v16.13.1 */`,
+			expectedName: "React",
+			expectedVer:  "16.13.1",
+			shouldFind:   true,
+		},
+		{
+			name:         "DOMPurify",
+			body:         `var DOMPurify = createDOMPurify(window);`,
+			expectedName: "DOMPurify",
+			expectedVer:  "",
+			shouldFind:   true,
+		},
+		{
+			name:         "Showdown",
+			body:         `var converter = new showdown.Converter();`,
+			expectedName: "Showdown",
+			expectedVer:  "",
+			shouldFind:   true,
 		},
 	}
 

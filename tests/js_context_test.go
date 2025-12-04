@@ -35,14 +35,14 @@ func TestGranularJSContext(t *testing.T) {
 			context:         "<script>var x = PROBE;</script>",
 			probe:           "PROBE",
 			expectedContext: models.ContextJSRaw,
-			expectedPayload: "\\\"-alert(1)}//",
+			expectedPayload: ";alert(1);//",
 		},
 		{
 			name:            "JS Raw No Semicolon",
 			context:         "<script>if(PROBE){}</script>",
 			probe:           "PROBE",
 			expectedContext: models.ContextJSRaw,
-			expectedPayload: "\\\"-alert(1)}//",
+			expectedPayload: ";alert(1);//",
 		},
 	}
 

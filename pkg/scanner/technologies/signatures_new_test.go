@@ -105,6 +105,31 @@ func TestNewSignatures(t *testing.T) {
 			expectedVer:  "3.0.0",
 			shouldFind:   true,
 		},
+		// New Libraries Phase 1
+		{
+			name:         "DOMPurify",
+			body:         `var DOMPurify = createDOMPurify(window);`,
+			expectedName: "DOMPurify",
+			shouldFind:   true,
+		},
+		{
+			name:         "Showdown",
+			body:         `var converter = new showdown.Converter();`,
+			expectedName: "Showdown",
+			shouldFind:   true,
+		},
+		{
+			name:         "Marked",
+			body:         `marked.parse("hello world");`,
+			expectedName: "Marked",
+			shouldFind:   true,
+		},
+		{
+			name:         "sanitize-html",
+			body:         `var clean = sanitizeHtml(dirty);`,
+			expectedName: "sanitize-html",
+			shouldFind:   true,
+		},
 	}
 
 	for _, tt := range tests {

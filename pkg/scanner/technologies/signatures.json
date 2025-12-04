@@ -10,9 +10,16 @@
         "content_patterns": [
             "React v([\\d\\.]+)",
             "React\\.version\\s*=\\s*['\"]([\\d\\.]+)['\"]",
+            "/\\*! React v([\\d\\.]+)",
             "__REACT_DEVTOOLS_GLOBAL_HOOK__",
             "data-reactid",
-            "data-reactroot"
+            "data-reactroot",
+            "/\\*\\*\n +\\* React \\(with addons\\) ?v([\\d\\.]+)",
+            "/\\*\\*\n +\\* React v([\\d\\.]+)",
+            "/\\*\\* @license React v([\\d\\.]+)[\\s]*\\* react(-jsx-runtime)?\\.",
+            "\"\\./ReactReconciler\":[0-9]+,\"\\./Transaction\":[0-9]+,\"fbjs/lib/invariant\":[0-9]+\\}\\],[0-9]+:\\[function\\(require,module,exports\\)\\{\"use strict\";module\\.exports=\"([\\d\\.]+)\"\\}",
+            "ReactVersion\\.js[\\*! \\\\/\n\r]{0,100}function\\(e,t\\)\\{\"use strict\";e\\.exports=\"([\\d\\.]+)\"",
+            "expected a ReactNode.[\\s\\S]{0,1800}?function\\(e,t\\)\\{\"use strict\";e\\.exports=\"([\\d\\.]+)\""
         ]
     },
     {
@@ -21,13 +28,26 @@
             "vue(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
             "vue\\.min\\.js",
             "vue-router(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
-            "vuex(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js"
+            "vuex(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "vue-([\\d\\.]+)(\\.min)?\\.js"
         ],
         "content_patterns": [
             "Vue\\.js v([\\d\\.]+)",
             "Vue\\.version\\s*=\\s*['\"]([\\d\\.]+)['\"]",
+            "/\\*! Vue v([\\d\\.]+)",
             "__VUE_DEVTOOLS_GLOBAL_HOOK__",
-            "data-v-"
+            "data-v-",
+            "/\\*!\\n \\* Vue.js v([\\d\\.]+)",
+            "/\\*\\*?!?\\n ?\\* vue v([\\d\\.]+)",
+            "Vue.version = '([\\d\\.]+)';",
+            "'([\\d\\.]+)'[^\\n]{0,8000}Vue compiler",
+            "\\* Original file: /npm/vue@([\\d\\.]+)/dist/vue.(global|common).js",
+            "const version[ ]*=[ ]*\"([\\d\\.]+)\";[\\s]*/\\*\\*[\\s]*\\* SSR utils for \\\\@vue/server-renderer",
+            "\\.__vue_app__=.{0,8000}?const [a-z]+=\"([\\d\\.]+)\",",
+            "let [A-Za-z]+=\"([\\d\\.]+)\",..=\"undefined\"!=typeof window\u0026\u0026window.trustedTypes;if\\(..\\)try\\{.=..\\.createPolicy\\(\"vue\",",
+            "isCustomElement.{1,5}?compilerOptions.{0,500}exposeProxy.{0,700}\"([\\d\\.]+)\"",
+            "\"([\\d\\.]+)\"[\\s\\S]{0,150}\\.createPolicy\\(\"vue\"",
+            "devtoolsFormatters[\\s\\S]{50,180}\"([\\d\\.]+)\"[\\s\\S]{50,180}\\.createElement\\(\"template\"\\)"
         ]
     },
     {
@@ -35,12 +55,29 @@
         "file_patterns": [
             "jquery(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
             "jquery\\.min\\.js",
-            "jquery-([\\d\\.]+)(?:\\.min)?\\.js"
+            "jquery-([\\d\\.]+)(?:\\.min)?\\.js",
+            "jquery-([\\d\\.]+)(\\.min)?\\.js"
         ],
         "content_patterns": [
             "jQuery v([\\d\\.]+)",
             "jquery:\\s*['\"]([\\d\\.]+)['\"]",
-            "fn\\.jquery"
+            "fn\\.jquery",
+            "/\\*!? jQuery v([\\d\\.]+)",
+            "\\* jQuery JavaScript Library v([\\d\\.]+)",
+            "\\* jQuery ([\\d\\.]+) - New Wave Javascript",
+            "/\\*![\\s]+\\* jQuery JavaScript Library v([\\d\\.]+)",
+            "// \\$Id: jquery.js,v ([\\d\\.]+)",
+            "/\\*! jQuery v([\\d\\.]+)",
+            "[^a-z]f=\"([\\d\\.]+)\",.*[^a-z]jquery:f,",
+            "[^a-z]m=\"([\\d\\.]+)\",.*[^a-z]jquery:m,",
+            "[^a-z.]jquery:[ ]?\"([\\d\\.]+)\"",
+            "\\$\\.documentElement,Q=e.jQuery,Z=e\\.\\$,ee=\\{\\},te=\\[\\],ne=\"([\\d\\.]+)\"",
+            "=\"([\\d\\.]+)\",.{50,300}(.)\\.fn=(\\2)\\.prototype=\\{jquery:",
+            "\u003cscript [^\u003e]*jquery",
+            "jquery(\\.min)?\\.js\\?ver=([0-9\\.]+)['\"]",
+            "jquery\\",
+            "jquery-([0-9\\.]+)(\\.min)?\\.js",
+            "jquery(\\.min)?\\.js(\\.[a-z\u0026=;\\?]*)(\\?|;)(v|ver)=([0-9\\.]+)['\"]"
         ]
     },
     {
@@ -48,10 +85,22 @@
         "file_patterns": [
             "bootstrap(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
             "bootstrap\\.min\\.js",
-            "bootstrap\\.bundle(?:\\.min)?\\.js"
+            "bootstrap\\.bundle(?:\\.min)?\\.js",
+            "bootstrap-([\\d\\.]+)(\\.min)?\\.js"
         ],
         "content_patterns": [
-            "Bootstrap v([\\d\\.]+)"
+            "Bootstrap v([\\d\\.]+)",
+            "/\\*!? Bootstrap v([\\d\\.]+)",
+            "\\* Bootstrap v([\\d\\.]+)",
+            "/\\*! Bootstrap v([\\d\\.]+)",
+            "this\\.close\\)\\};.\\.VERSION=\"([\\d\\.]+)\"(?:,.\\.TRANSITION_DURATION=150)?,.\\.prototype\\.close",
+            "\u003cscript [^\u003e]*bootstrap",
+            "\u003clink [^\u003e]*bootstrap",
+            "bootstrap(\\.min)?\\.js\\?ver=([0-9\\.]+)['\"]",
+            "bootstrap\\",
+            "bootstrap-([0-9\\.]+)(\\.min)?\\.js",
+            "bootstrap(\\.min)?\\.css\\?ver=([0-9\\.]+)['\"]",
+            "bootstrap-([0-9\\.]+)(\\.min)?\\.css"
         ]
     },
     {
@@ -59,7 +108,8 @@
         "file_patterns": [
             "angular(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
             "angular\\.min\\.js",
-            "angular\\.js"
+            "angular\\.js",
+            "angular(?:js)?-([\\d\\.]+)(.min)?\\.js"
         ],
         "content_patterns": [
             "angular\\.version",
@@ -67,7 +117,9 @@
             "\\bng-app\\b",
             "\\bdata-ng-app\\b",
             "\\bx-ng-app\\b",
-            "\\bng-controller\\b"
+            "\\bng-controller\\b",
+            "/\\*[\\*\\s]+(?:@license )?AngularJS(?: NES)? v([\\d\\.]+)",
+            "http://errors\\.angularjs\\.org/([\\d\\.]+)/"
         ]
     },
     {
@@ -94,33 +146,52 @@
     {
         "name": "Svelte",
         "file_patterns": [
-            "svelte(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js"
+            "svelte(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "svelte[@\\-]([\\d\\.]+)(.min)?\\.m?js"
         ],
         "content_patterns": [
             "__svelte",
             "svelte-([\\d\\.]+)",
-            "version:[\"']([\\d\\.]+)[\"']"
+            "version:[\"']([\\d\\.]+)[\"']",
+            "generated by Svelte v\\$\\{['\"]([\\d\\.]+)['\"]\\}",
+            "generated by Svelte v([\\d\\.]+) \\*/",
+            "version: '([\\d\\.]+)' [\\s\\S]{80,200}'SvelteDOMInsert'",
+            "VERSION = '([\\d\\.]+)'[\\s\\S]{21,200}parse\\$[0-9][\\s\\S]{10,80}preprocess",
+            "var version\\$[0-9] = \"([\\d\\.]+)\";[\\s\\S]{10,30}normalizeOptions\\(options\\)[\\s\\S]{80,200}'SvelteComponent.html'"
         ]
     },
     {
         "name": "Backbone.js",
         "file_patterns": [
             "backbone(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
-            "backbone\\.min\\.js"
+            "backbone\\.min\\.js",
+            "backbone(?:js)?-([\\d\\.]+)(.min)?\\.js"
         ],
         "content_patterns": [
             "Backbone\\.js ([\\d\\.]+)",
-            "Backbone\\.VERSION"
+            "Backbone\\.VERSION",
+            "//[ ]+Backbone.js ([\\d\\.]+)",
+            "a=t.Backbone=\\{\\}\\}a.VERSION=\"([\\d\\.]+)\"",
+            "Backbone\\.VERSION *= *[\"']([\\d\\.]+)[\"']"
         ]
     },
     {
         "name": "Ember.js",
         "file_patterns": [
             "ember(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
-            "ember\\.min\\.js"
+            "ember\\.min\\.js",
+            "ember-([\\d\\.]+)(\\.min)?\\.js"
         ],
         "content_patterns": [
-            "Ember\\.VERSION"
+            "Ember\\.VERSION",
+            "Project:   Ember -(?:.*\n){9,11}// Version: v([\\d\\.]+)",
+            "// Version: v([\\d\\.]+)(.*\n){10,15}(Ember Debug|@module ember|@class ember)",
+            "Ember.VERSION[ ]?=[ ]?(?:'|\")([\\d\\.]+)(?:'|\")",
+            "meta\\.revision=\"Ember@([\\d\\.]+)\"",
+            "e\\(\"ember/version\",\\[\"exports\"\\],function\\(e\\)\\{\"use strict\";?[\\s]*e(?:\\.|\\[\")default(?:\"\\])?=\"([\\d\\.]+)\"",
+            "\\(\"ember/version\",\\[\"exports\"\\],function\\(e\\)\\{\"use strict\";.{1,70}\\.default=\"([\\d\\.]+)\"",
+            "/\\*![\\s]+\\* @overview  Ember - JavaScript Application Framework[\\s\\S]{0,400}\\* @version   ([\\d\\.]+)",
+            "// Version: ([\\d\\.]+)[\\s]+\\(function\\(\\) *\\{[\\s]*/\\*\\*[\\s]+@module ember[\\s]"
         ]
     },
     {
@@ -132,7 +203,13 @@
         ],
         "content_patterns": [
             "lodash\\.VERSION",
-            "lodash\\.VERSION = ['\"]([\\d\\.]+)['\"]"
+            "lodash\\.VERSION = ['\"]([\\d\\.]+)['\"]",
+            "/\\*[\\s*!]+(?:@license)?[\\s*]+(?:Lo-Dash|lodash|Lodash) v?([\\d\\.]+)[\\s\\S]{1,200}Build: `lodash modern -o",
+            "/\\*[\\s*!]+(?:@license)?[\\s*]+(?:Lo-Dash|lodash|Lodash) v?([\\d\\.]+) \u003c",
+            "/\\*[\\s*!]+(?:@license)?[\\s*]+(?:Lo-Dash|lodash|Lodash) v?([\\d\\.]+) lodash.com/license",
+            "=\"([\\d\\.]+)(?\u003c=[0-9]{1,2}\\.[0-9]{1,2}\\.[0-9]{1,2})\"[\\s\\S]{1,300}__lodash_hash_undefined__",
+            "/\\*[\\s*]+@license[\\s*]+(?:Lo-Dash|lodhash|Lodash)[\\s\\S]{1,500}var VERSION *= *['\"]([\\d\\.]+)['\"]",
+            "var VERSION=\"([\\d\\.]+)\";var BIND_FLAG=1,BIND_KEY_FLAG=2,CURRY_BOUND_FLAG=4,CURRY_FLAG=8"
         ]
     },
     {
@@ -144,7 +221,9 @@
         ],
         "content_patterns": [
             "_.VERSION",
-            "var VERSION = ['\"]([\\d\\.]+)['\"]"
+            "var VERSION = ['\"]([\\d\\.]+)['\"]",
+            "//[\\s]*Underscore.js ([\\d\\.]+)",
+            "// *Underscore\\.js[\\s\\S]{1,2500}_\\.VERSION *= *['\"]([\\d\\.]+)['\"]"
         ]
     },
     {
@@ -174,24 +253,37 @@
         "name": "Axios",
         "file_patterns": [
             "axios(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
-            "axios\\.min\\.js"
+            "axios\\.min\\.js",
+            "axios-([\\d\\.]+)(\\.min)?\\.js"
         ],
         "content_patterns": [
             "axios v([\\d\\.]+)",
             "exports\\.axios",
-            "var VERSION = ['\"]([\\d\\.]+)['\"]"
+            "var VERSION = ['\"]([\\d\\.]+)['\"]",
+            "/\\*!? *[Aa]xios v([\\d\\.]+) ",
+            "// Axios v([\\d\\.]+) C",
+            "return\"\\[Axios v([\\d\\.]+)\\] Transitional",
+            "\\\"axios\\\",\\\"version\\\":\\\"([\\d\\.]+)\\\""
         ]
     },
     {
         "name": "Moment.js",
         "file_patterns": [
             "moment(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
-            "moment\\.min\\.js"
+            "moment\\.min\\.js",
+            "moment(?:-|\\.)([\\d\\.]+)(?:-min)?\\.js"
         ],
         "content_patterns": [
             "moment\\.version",
             "//! moment\\.js",
-            "//! version : ([\\d\\.]+)"
+            "//! version : ([\\d\\.]+)",
+            "//!? moment.js(?:[\n\r]+)//!? version : ([\\d\\.]+)",
+            "/\\* Moment.js +\\| +version : ([\\d\\.]+) \\|",
+            "\\.version=\"([\\d\\.]+)\".{20,60}\"isBefore\".{20,60}\"isAfter\".{200,500}\\.isMoment=",
+            "\\.version=\"([\\d\\.]+)\".{20,300}duration.{2,100}\\.isMoment=",
+            "\\.isMoment\\(.{50,400}_isUTC.{50,400}=\"([\\d\\.]+)\"",
+            "=\"([\\d\\.]+)\".{300,1000}Years:31536e6.{60,80}\\.isMoment",
+            "// Moment.js is freely distributable under the terms of the MIT license.[\\s]+//[\\s]+// Version ([\\d\\.]+)"
         ]
     },
     {
@@ -202,7 +294,10 @@
         ],
         "content_patterns": [
             "Chart\\.version",
-            "Chart\\.js v([\\d\\.]+)"
+            "Chart\\.js v([\\d\\.]+)",
+            "var version=\"([\\d\\.]+)\";const KNOWN_POSITIONS=\\[\"top\",\"bottom\",\"left\",\"right\",\"chartArea\"\\]",
+            "/\\*![\\s]+\\* Chart.js v([\\d\\.]+)",
+            "/\\*![\\s]+\\* Chart.js[\\s]+\\* http://chartjs.org/[\\s]+\\* Version: ([\\d\\.]+)"
         ]
     },
     {
@@ -237,6 +332,212 @@
         "content_patterns": [
             "io\\.version",
             "Socket\\.IO v([\\d\\.]+)"
+        ]
+    },
+    {
+        "name": "DOMPurify",
+        "file_patterns": [
+            "purify(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "dompurify(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js"
+        ],
+        "content_patterns": [
+            "DOMPurify\\.version",
+            "var DOMPurify",
+            "DOMPurify.version = '([\\d\\.]+)';",
+            "DOMPurify.version=\"([\\d\\.]+)\"",
+            "DOMPurify=.[^\\r\\n]{10,850}?\\.version=\"([\\d\\.]+)\"",
+            "/\\*! @license DOMPurify ([\\d\\.]+)",
+            "var .=\"dompurify\"+.{10,550}?\\.version=\"([\\d\\.]+)\""
+        ]
+    },
+    {
+        "name": "sanitize-html",
+        "file_patterns": [
+            "sanitize-html(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js"
+        ],
+        "content_patterns": [
+            "sanitizeHtml"
+        ]
+    },
+    {
+        "name": "Showdown",
+        "file_patterns": [
+            "showdown(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js"
+        ],
+        "content_patterns": [
+            "showdown\\.helper",
+            "new showdown\\.Converter"
+        ]
+    },
+    {
+        "name": "Marked",
+        "file_patterns": [
+            "marked(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js"
+        ],
+        "content_patterns": [
+            "marked\\.parse",
+            "marked\\.lexer"
+        ]
+    },
+    {
+        "name": "jQuery UI",
+        "file_patterns": [
+            "jquery-ui(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "jquery-ui\\.min\\.js"
+        ],
+        "content_patterns": [
+            "jQuery\\.ui",
+            "ui-helper-reset"
+        ]
+    },
+    {
+        "name": "Foundation",
+        "file_patterns": [
+            "foundation(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "foundation\\.min\\.js"
+        ],
+        "content_patterns": [
+            "Foundation\\.version",
+            "what-input"
+        ]
+    },
+    {
+        "name": "Semantic UI",
+        "file_patterns": [
+            "semantic(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "semantic\\.min\\.js"
+        ],
+        "content_patterns": [
+            "Semantic UI",
+            "\\.ui\\.modal"
+        ]
+    },
+    {
+        "name": "Materialize",
+        "file_patterns": [
+            "materialize(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "materialize\\.min\\.js"
+        ],
+        "content_patterns": [
+            "Materialize",
+            "M\\.AutoInit"
+        ]
+    },
+    {
+        "name": "DataTables",
+        "file_patterns": [
+            "jquery\\.dataTables(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "datatables\\.min\\.js"
+        ],
+        "content_patterns": [
+            "jQuery\\.fn\\.dataTable"
+        ]
+    },
+    {
+        "name": "core-js",
+        "file_patterns": [
+            "core-js(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "core-js\\.min\\.js"
+        ],
+        "content_patterns": [
+            "__core-js_shared__",
+            "core\\.version"
+        ]
+    },
+    {
+        "name": "GSAP",
+        "file_patterns": [
+            "gsap(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "gsap\\.min\\.js",
+            "TweenMax(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js"
+        ],
+        "content_patterns": [
+            "gsap\\.version",
+            "TweenMax\\.version"
+        ]
+    },
+    {
+        "name": "Anime.js",
+        "file_patterns": [
+            "anime(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "anime\\.min\\.js"
+        ],
+        "content_patterns": [
+            "anime\\.version"
+        ]
+    },
+    {
+        "name": "Redux",
+        "file_patterns": [
+            "redux(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "redux\\.min\\.js"
+        ],
+        "content_patterns": [
+            "Redux\\.createStore"
+        ]
+    },
+    {
+        "name": "MobX",
+        "file_patterns": [
+            "mobx(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "mobx\\.min\\.js",
+            "mobx\\.umd\\.min\\.js"
+        ],
+        "content_patterns": [
+            "__mobxGlobal",
+            "mobx\\.observable"
+        ]
+    },
+    {
+        "name": "Ramda",
+        "file_patterns": [
+            "ramda(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "ramda\\.min\\.js"
+        ],
+        "content_patterns": [
+            "R\\.version"
+        ]
+    },
+    {
+        "name": "Preact",
+        "file_patterns": [
+            "preact(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "preact\\.min\\.js"
+        ],
+        "content_patterns": [
+            "preact\\.render",
+            "__PREACT_DEVTOOLS__"
+        ]
+    },
+    {
+        "name": "Leaflet",
+        "file_patterns": [
+            "leaflet(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "leaflet\\.js"
+        ],
+        "content_patterns": [
+            "L\\.version"
+        ]
+    },
+    {
+        "name": "OpenLayers",
+        "file_patterns": [
+            "ol(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "ol\\.js"
+        ],
+        "content_patterns": [
+            "ol\\.Map",
+            "ol\\.View"
+        ]
+    },
+    {
+        "name": "Video.js",
+        "file_patterns": [
+            "video(?:\\.|-)([\\d\\.]+)(?:\\.min)?\\.js",
+            "video\\.min\\.js"
+        ],
+        "content_patterns": [
+            "videojs\\.VERSION"
         ]
     }
 ]

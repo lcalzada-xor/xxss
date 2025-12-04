@@ -9,11 +9,9 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/lcalzada-xor/xxss/v2/pkg/logger"
 	"github.com/lcalzada-xor/xxss/v2/pkg/models"
@@ -148,7 +146,7 @@ func (s *Scanner) ProbeParameter(ctx context.Context, targetURL, param string) (
 	qs := u.Query()
 	val := qs.Get(param)
 
-	probeStr := "xssprobe"
+	probeStr := fmt.Sprintf("xxss_%d", rand.Intn(100000))
 	payload := val + probeStr + strings.Join(analysis.SpecialChars, "") + probeStr
 
 	s.logger.VV("Payload (%d chars): %s", len(payload), payload)
@@ -274,7 +272,7 @@ func (s *Scanner) ProbeBodyParameter(ctx context.Context, config *models.Request
 	s.logger.Section(fmt.Sprintf("Probing Parameter: %s", param))
 
 	val := params[param]
-	probeStr := "xssprobe"
+	probeStr := fmt.Sprintf("xxss_%d", rand.Intn(100000))
 	payload := val + probeStr + strings.Join(analysis.SpecialChars, "") + probeStr
 
 	testBody := CreateBodyWithProbe(params, param, payload, config.ContentType)
@@ -303,7 +301,7 @@ func (s *Scanner) ProbeBodyParameter(ctx context.Context, config *models.Request
 
 // ScanHeader scans a specific HTTP header for XSS
 func (s *Scanner) ScanHeader(ctx context.Context, targetURL, headerName string) ([]models.Result, error) {
-	probeStr := "xssprobe"
+	probeStr := fmt.Sprintf("xxss_%d", rand.Intn(100000))
 	payload := probeStr + strings.Join(analysis.SpecialChars, "") + probeStr
 
 	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
@@ -493,48 +491,33 @@ func (s *Scanner) AnalyzeReflection(targetURL, method, param string, injectionTy
 // checkLocalUnfiltered checks which special characters are present immediately after the probe
 func checkLocalUnfiltered(body string, probeIdx int, probe string, specialChars []string) ([]string, int) {
 	unfiltered := []string{}
-	// We expect the reflection to be `probe` + `content` + `probe`?
-	// Or just `probe` + `content`?
-	// The injection was `probe + chars + probe`.
-	// So at `probeIdx`, we have the FIRST probe.
-	// The content should follow immediately.
 
 	start := probeIdx + len(probe)
 	if start >= len(body) {
 		return unfiltered, -1
 	}
 
-	// We look for the NEXT probe to define the end of the content?
-	// Or just check if the chars are there.
-	// Since we know the order of chars, we can check them.
-	// But they might be mixed with other stuff if reflection is weird.
-	// Assuming standard reflection:
-
-	// Let's just look at the next N chars (where N is len(chars) * max_encoding_expansion).
-	// Or find the next probe.
+	// Look for the next probe to define the end of the content
 	nextProbe := strings.Index(body[start:], probe)
 	if nextProbe == -1 {
-		// Maybe truncated?
-		return unfiltered, -1
+		// If we can't find the next probe, we might be at the end of the reflection
+		// or the reflection is truncated.
+		// Let's try to look at a reasonable window (e.g., 200 chars)
+		// This handles cases where the second probe is cut off or modified.
+		windowSize := 200
+		if len(body[start:]) < windowSize {
+			windowSize = len(body[start:])
+		}
+		nextProbe = windowSize
 	}
 
 	content := body[start : start+nextProbe]
-	// fmt.Printf("DEBUG: checkLocalUnfiltered content='%s'\n", content)
 
-	// Validate content: it should not contain alphanumeric characters (unless part of entities)
-	// because our payload is only special characters.
-	// This prevents matching content between two separate injections.
-
-	// Simple entity regex
-	entityRegex := regexp.MustCompile(`&[^;]+;`)
-	cleanContent := entityRegex.ReplaceAllString(content, "")
-
-	for _, r := range cleanContent {
-		if unicode.IsLetter(r) || unicode.IsNumber(r) {
-			// Found alphanumeric char, likely not our reflection
-			return unfiltered, -1
-		}
-	}
+	// Validate content:
+	// We used to fail if we found alphanumeric chars, but that's too strict.
+	// WAFs/Sanitizers might replace chars with text (e.g. < -> [removed]).
+	// So we just look for the special chars we injected.
+	// However, we should be careful not to match random text if the probe is very common (which is why we use dynamic probes now).
 
 	// Check for each special char in `content`
 	for _, char := range specialChars {

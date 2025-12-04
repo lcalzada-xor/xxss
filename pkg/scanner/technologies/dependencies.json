@@ -1,0 +1,54 @@
+[
+    {
+        "trigger_tech": "Bootstrap",
+        "trigger_version_not_prefix": "5.",
+        "missing_techs": [
+            "jQuery"
+        ],
+        "infer_tech": "jQuery"
+    },
+    {
+        "trigger_tech": "Backbone.js",
+        "missing_techs": [
+            "Underscore.js",
+            "Lodash"
+        ],
+        "infer_tech": "Underscore.js"
+    },
+    {
+        "trigger_tech": "jQuery UI",
+        "missing_techs": [
+            "jQuery"
+        ],
+        "infer_tech": "jQuery"
+    },
+    {
+        "trigger_tech": "Foundation",
+        "missing_techs": [
+            "jQuery"
+        ],
+        "infer_tech": "jQuery"
+    },
+    {
+        "trigger_tech": "Semantic UI",
+        "missing_techs": [
+            "jQuery"
+        ],
+        "infer_tech": "jQuery"
+    },
+    {
+        "trigger_tech": "DataTables",
+        "missing_techs": [
+            "jQuery"
+        ],
+        "infer_tech": "jQuery"
+    },
+    {
+        "trigger_tech": "Materialize",
+        "trigger_version_not_prefix": "1.",
+        "missing_techs": [
+            "jQuery"
+        ],
+        "infer_tech": "jQuery"
+    }
+]
